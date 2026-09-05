@@ -1,0 +1,106 @@
+# Version catalogue — the single source of truth for every dependency version.
+#
+# Every version here is a *literal*. No dynamic versions ("+", "latest.release"): they make builds
+# non-reproducible and are a supply-chain risk. Changing a value in this file is an architecture
+# decision — record it in docs/adr/ — not a preference.
+#
+# Verified against upstream release metadata on 2026-09-05.
+
+[versions]
+# --- Build tooling -------------------------------------------------------------------------------
+kotlin = "2.4.10"                      # newest stable; 2.4.20 is still RC
+agp = "9.4.0"                          # newest stable; 9.5.0 is alpha
+composeMultiplatform = "1.12.0"        # newest stable; 64-bit only, requires Kotlin >= 2.1.0
+ktlintGradle = "14.2.0"
+ktlint = "1.8.0"                        # the ktlint CLI engine the Gradle plugin drives
+detekt = "1.23.8"                      # see docs/adr/0003 — kept only if it resolves on Kotlin 2.4.10
+
+# --- Android SDK ---------------------------------------------------------------------------------
+# API 37 ships only as minor versions (37.0 / 37.1 / 37.2); there is no plain `android-37`.
+# compileSdk 37 resolves to platform android-37.0.
+minSdk = "26"
+compileSdk = "37"
+targetSdk = "37"
+
+# --- JetBrains / Kotlin libraries ----------------------------------------------------------------
+coroutines = "1.11.0"
+serializationJson = "1.11.0"           # newest stable; 1.12.0 is RC
+collectionsImmutable = "0.5.2"
+
+# --- JetBrains-published AndroidX ports (org.jetbrains.androidx.*) --------------------------------
+# Resolved against the Compose Multiplatform 1.12.0 release notes.
+lifecycle = "2.11.0"                   # all lifecycle artifacts, viewmodel-navigation3 included
+navigation3 = "1.1.1"                  # newest stable; 1.2.0 is alpha
+savedstate = "1.4.0"
+windowCore = "1.5.1"
+adaptiveNavigation3 = "1.3.0-beta02"   # beta — only if PR11 takes the adaptive path
+
+# --- Third party ---------------------------------------------------------------------------------
+ktor = "3.5.2"
+koin = "4.2.2"                         # built against Kotlin 2.3.20, binary-compatible — see README
+coil = "3.6.2"
+turbine = "1.2.1"
+
+[libraries]
+# --- Coroutines ----------------------------------------------------------------------------------
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+# Desktop only: Dispatchers.Main throws IllegalStateException on first use without this.
+kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+
+# --- Serialisation / collections -----------------------------------------------------------------
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serializationJson" }
+kotlinx-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version.ref = "collectionsImmutable" }
+
+# --- Ktor ----------------------------------------------------------------------------------------
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-contentNegotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinxJson = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
+# Engines: one per target, never in commonMain.
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+
+# --- Koin ----------------------------------------------------------------------------------------
+koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
+koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
+koin-composeViewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
+koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin" }
+
+# --- AndroidX ports ------------------------------------------------------------------------------
+androidx-lifecycle-viewmodelCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodelNavigation3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "lifecycle" }
+# navigation3-common arrives transitively — do not declare it.
+androidx-navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
+androidx-savedstate = { module = "org.jetbrains.androidx.savedstate:savedstate", version.ref = "savedstate" }
+androidx-window-core = { module = "org.jetbrains.androidx.window:window-core", version.ref = "windowCore" }
+compose-adaptive-navigation3 = { module = "org.jetbrains.compose.material3.adaptive:adaptive-navigation3", version.ref = "adaptiveNavigation3" }
+
+# --- Images --------------------------------------------------------------------------------------
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-networkKtor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
+
+# --- Test ----------------------------------------------------------------------------------------
+turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
+
+# --- Plugin artifacts, for build-logic's classpath ------------------------------------------------
+# Convention plugins apply these by id; build-logic needs them on its compile classpath to do so.
+plugin-kotlin-gradle = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+plugin-kotlin-composeCompiler = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
+plugin-kotlin-serialization = { module = "org.jetbrains.kotlin:kotlin-serialization", version.ref = "kotlin" }
+plugin-android-gradle = { module = "com.android.tools.build:gradle", version.ref = "agp" }
+plugin-compose-gradle = { module = "org.jetbrains.compose:compose-gradle-plugin", version.ref = "composeMultiplatform" }
+plugin-ktlint-gradle = { module = "org.jlleitschuh.gradle:ktlint-gradle", version.ref = "ktlintGradle" }
+plugin-detekt-gradle = { module = "io.gitlab.arturbosch.detekt:detekt-gradle-plugin", version.ref = "detekt" }
+
+[plugins]
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
+androidApplication = { id = "com.android.application", version.ref = "agp" }
+androidKotlinMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintGradle" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
