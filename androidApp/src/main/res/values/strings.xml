@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Launcher label only. Every *in-app* string lives in :core:designsystem so one module owns the
+      bundle and Res is generated once; this one cannot, because the Android manifest resolves it
+      through the platform resource system before any Compose resource exists.
+    -->
+    <string name="app_name">GitHub Search</string>
+</resources>
