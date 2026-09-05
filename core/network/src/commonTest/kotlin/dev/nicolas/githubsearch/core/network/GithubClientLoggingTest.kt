@@ -7,7 +7,10 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.request.get
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,8 +33,17 @@ class GithubClientLoggingTest {
     private fun client(
         logger: Logger,
         logLevel: String? = null,
+        body: String = """{"ok":true}""",
     ): HttpClient =
-        HttpClient(MockEngine { respond("""{"ok":true}""", HttpStatusCode.OK) }) {
+        HttpClient(
+            MockEngine {
+                respond(
+                    body,
+                    HttpStatusCode.OK,
+                    headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+            },
+        ) {
             configureGithubClient(
                 GithubClientConfig(
                     baseUrl = BASE_URL,
@@ -88,4 +100,20 @@ class GithubClientLoggingTest {
         // sanitizer cannot see.
         assertFalse(config.toString().contains(TOKEN))
     }
+
+    @Test
+    fun `a response body never reaches the log even when body logging is requested`() =
+        runTest {
+            val logger = RecordingLogger()
+            val identifiable = """{"full_name":"acme/internal-secrets"}"""
+
+            client(logger, logLevel = "ALL", body = identifiable).get(BASE_URL)
+
+            // Ktor's BODY and ALL levels log full response bodies, and sanitizeHeader only covers
+            // headers. With a PAT configured a search response can contain private repository
+            // data, so those levels are clamped rather than trusted — the project rule is that a
+            // full response body is never logged at any level.
+            assertFalse(logger.everything().contains("acme/internal-secrets"))
+            assertTrue(logger.lines.isNotEmpty(), "headers should still be logged at this level")
+        }
 }

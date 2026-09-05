@@ -44,8 +44,25 @@ public data class GithubClientConfig(
     // Authorization header is redacted regardless of level.
     val logger: Logger = Logger.SIMPLE,
 ) {
+    /**
+     * The level actually applied, which is never a body-logging one.
+     *
+     * `BODY` and `ALL` log full request and response bodies, and `sanitizeHeader` does not reach
+     * them — it covers headers only. With a PAT configured a GitHub response can carry private
+     * repository data, and the project rule is that a full response body is never logged at any
+     * level, so those two are clamped to `HEADERS` rather than trusted to be used carefully.
+     *
+     * The cost is real and accepted: a developer who asks for `ALL` while debugging gets headers
+     * and timings, not payloads. An unrecognised name falls back to `NONE`, so a typo in a
+     * developer properties file cannot enable logging or crash the dependency graph.
+     */
     internal val resolvedLogLevel: LogLevel
-        get() = LogLevel.entries.firstOrNull { it.name.equals(logLevel, ignoreCase = true) } ?: LogLevel.NONE
+        get() =
+            when (val requested = LogLevel.entries.firstOrNull { it.name.equals(logLevel, ignoreCase = true) }) {
+                LogLevel.BODY, LogLevel.ALL -> LogLevel.HEADERS
+                null -> LogLevel.NONE
+                else -> requested
+            }
 
     /**
      * Redacts the token.
