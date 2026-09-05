@@ -1,0 +1,36 @@
+name: Sync labels
+
+# Applies .github/labels.yml to the repository, so the label set is defined in version control
+# rather than as ad hoc state in the web UI. Without this the file is documentation of an intent
+# nobody enforces — and the issue forms apply labels that would otherwise not exist.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/labels.yml
+      - .github/workflows/labels.yml
+  # Manual trigger, because the first run has to happen on a repository whose labels predate
+  # the file.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Sync labels
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: crazy-max/ghaction-github-labeler@548a7c3603594ec17c819e1239f281a3b801ab4d # v6.0.0
+        with:
+          yaml-file: .github/labels.yml
+          # Labels created by hand are not deleted. GitHub's stock set is still attached to
+          # existing issues, and reconciling that is not this workflow's job.
+          skip-delete: true
+          dry-run: false
