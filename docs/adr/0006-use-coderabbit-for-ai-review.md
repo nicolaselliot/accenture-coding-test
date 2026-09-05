@@ -49,19 +49,39 @@ fewer credential in a project whose security posture is a graded criterion. The 
 version control next to the code they govern, so a reviewer can see what the bot was told, and the
 rules can be corrected in a pull request like anything else.
 
-The real cost is trust: CodeRabbit is a third-party GitHub App with read access to the repository
-and write access to pull request comments. That is a larger grant than any pinned action in
-ADR-0005, and it is accepted for three specific reasons — the repository is public, so the source
-it reads is already disclosed; the repository holds no secrets, because `local.properties` and all
-signing material are gitignored and blocked from ever being written; and the app cannot modify code
-or merge anything.
+The real cost is trust, and it is larger than a first reading suggests. CodeRabbit is a third-party
+GitHub App, and its documented permissions are:
+
+| Access | Scopes |
+|---|---|
+| Read-only | actions, checks, discussions, members, metadata |
+| **Read and write** | **code, commit statuses, issues, pull requests** |
+
+That includes **write access to code** — not merely to pull request comments. It is a materially
+larger grant than any pinned action in ADR-0005, where an action's reach is bounded by the
+`permissions` block of the job that runs it.
+
+It is accepted for three specific reasons. The repository is public, so the source it reads is
+already disclosed. The repository holds no secrets: `local.properties` and all signing material are
+gitignored, and a `PreToolUse` hook blocks them being written at all. And what actually prevents an
+unwanted change reaching `main` is **branch protection**, not the app's own restraint — `main`
+requires a pull request, blocks force-pushes and deletions, and from PR2 onward requires the CI
+status checks to pass. Write access to code means the app *could* push a branch; branch protection
+is why that cannot become a merge without a human.
+
+Stating this precisely matters more than making the decision look comfortable. An earlier draft of
+this ADR claimed the app "cannot modify code or merge anything", which was wrong on the first half —
+exactly the kind of reassuring inaccuracy a security rationale must not contain.
 
 A second cost is vendor dependence: the free tier is a commercial decision that could change. If it
 does, the fallback is Gemini Code Assist or the Claude Code Action, and the `path_instructions`
 written here port to either with editing rather than rethinking, since they are prose rules.
 
-Rate limits on the free tier are 4 pull request reviews and 200 files per hour. At this project's
-volume — nineteen planned pull requests — that is not a constraint.
+Rate limits on the open-source plan are **1–10 pull request reviews per developer per hour**, as a
+rolling allowance rather than a fixed quota, and **100–300 files per review** — a per-review ceiling,
+not an hourly one. Both ranges vary with the repository's popularity, so they are not a fixed
+guarantee. At this project's volume — nineteen planned pull requests, none of them large — neither
+is a constraint.
 
 ## Alternatives considered
 
