@@ -27,7 +27,10 @@ reviews:
     drafts: false
 
   path_instructions:
-    - path: "**/*.kt"
+    # Production Kotlin only. Deliberately not `**/*.kt`: that also matches test sources, and the
+    # documentation rule below then contradicts the testing rules further down — which is exactly
+    # what happened on PR3, where every test function collected a "add KDoc" comment.
+    - path: "**/src/*Main/**/*.kt"
       instructions: |
         Kotlin style rules that are non-negotiable in this project:
         - No `!!`, no unchecked casts, no empty `catch`. Nullability is handled at the mapper
@@ -38,9 +41,13 @@ reviews:
           in a domain `when` silently swallows the next variant added.
         - Value classes for identifiers and meaningful primitives; no bare `String` repository ids.
         - Immutable by default: `val`, read-only collection types, `data class` for state.
-        - KDoc on every public declaration. Comments explain *why*, never *what*.
-        - Explicit API mode is strict on library modules: public declarations need explicit
-          visibility and return types.
+        - KDoc on every public declaration, explaining *why* rather than restating the signature.
+
+        Do NOT comment on missing visibility modifiers or explicit return types. Every library
+        module compiles under `explicitApi()` in strict mode, so the compiler already fails the
+        build on a real violation — and it does not require redundant `public` on a data class
+        constructor property, so asking for one contradicts the toolchain.
+
         Flag any hardcoded user-facing string; all of them belong in :core:designsystem resources.
 
     - path: "domain/**"
@@ -110,7 +117,11 @@ reviews:
         - `runTest` for anything suspending, with an injected TestDispatcher. Never a real one.
         - Never `Clock.System.now()`; the Clock is injected so rate-limit reset times are fakeable.
         - Names read as specification: subject + condition + expected outcome. Identifiers stay
-          English — flag any Japanese identifier.
+          English — flag any Japanese identifier. The name IS the documentation: do not ask for
+          KDoc on a test class or a test function.
+        - A test may deliberately exercise a production dispatcher or a real clock in order to
+          prove the production wiring works. Do not suggest replacing it with a fake — that would
+          move the coverage onto the fake, which its own test already covers.
         - Flag a deleted, weakened or commented-out assertion, and any expected value that looks
           pasted from actual output.
 
