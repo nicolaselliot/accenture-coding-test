@@ -57,4 +57,13 @@ kotlin {
     targets.withType<org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget>().configureEach {
         compilerOptions.jvmTarget.set(JvmTarget.JVM_21)
     }
+
+    sourceSets {
+        commonTest.dependencies {
+            // Every module tests with kotlin.test, so it is a convention rather than eleven
+            // identical declarations. It is multiplatform, so it does not break the iOS test
+            // compilation the way a JVM-only assertion library would.
+            implementation(kotlin("test"))
+        }
+    }
 }
