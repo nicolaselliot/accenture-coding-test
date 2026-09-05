@@ -60,10 +60,10 @@ fun configValue(
 val generateAppConfig =
     tasks.register<GenerateAppConfigTask>("generateAppConfig") {
         packageName.set("dev.nicolas.githubsearch.core.common.config")
-        flavor.set(configValue("FLAVOR", "flavor", default = "dev"))
-        baseUrl.set(configValue("BASE_URL", "baseUrl", default = "https://api.github.com"))
+        flavor.set(configValue("GITHUBSEARCH_FLAVOR", "flavor", default = "dev"))
+        baseUrl.set(configValue("GITHUBSEARCH_BASE_URL", "baseUrl", default = "https://api.github.com"))
         // NONE unless explicitly overridden: a default that logs is a default that leaks.
-        logLevel.set(configValue("LOG_LEVEL", "logLevel", default = "NONE"))
+        logLevel.set(configValue("GITHUBSEARCH_LOG_LEVEL", "logLevel", default = "NONE"))
         githubToken.set(configValue("GITHUBSEARCH_GITHUB_TOKEN", "github.token", default = ""))
         outputDirectory.set(layout.buildDirectory.dir("generated/appconfig/commonMain/kotlin"))
     }
