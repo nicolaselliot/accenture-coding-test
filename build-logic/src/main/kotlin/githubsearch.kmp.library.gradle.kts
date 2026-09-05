@@ -41,6 +41,11 @@ kotlin {
                 .let { ".$it" }
         compileSdk = sdk("compileSdk")
         minSdk = sdk("minSdk")
+
+        // Without this, `commonTest` is compiled for the desktop and iOS targets but silently
+        // skipped for Android — the suite passes while never having run on the platform the app
+        // primarily ships to. AGP warns about it, but a warning in a 600-task build is not a gate.
+        withHostTest {}
     }
 
     jvm("desktop")
