@@ -8,8 +8,11 @@ kotlin {
         // modules' test material. It stays a leaf because only *Test source sets may depend on it —
         // a rule the module graph documents and code review enforces.
         commonMain.dependencies {
-            implementation(project(":core:common"))
+            api(project(":core:common"))
             implementation(project(":domain"))
+            // api, not implementation: TestDispatcherProvider exposes TestDispatcher in its own
+            // signature, so every consumer needs the type on its compile classpath.
+            api(libs.kotlinx.coroutines.test)
         }
     }
 }
