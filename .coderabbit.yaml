@@ -1,0 +1,127 @@
+# CodeRabbit configuration. See docs/adr/0006.
+#
+# The review rules below mirror CLAUDE.md, which is the contract for this project. Keeping them
+# here rather than relying on the reviewer's defaults is the point: a generic review finds generic
+# problems, and the defects that matter here are layering violations, a swallowed
+# CancellationException, and a detail screen built from the wrong GitHub field.
+
+language: en-US
+
+tone_instructions: >-
+  Direct and specific. Point at the concrete failing case rather than describing the diff, and say
+  plainly when a file is fine. Skip praise.
+
+reviews:
+  # quiet | chill | assertive. Assertive, because this repository is a submission graded on code
+  # quality: a missed defect costs more here than an extra comment.
+  profile: assertive
+  high_level_summary: true
+  # Left false deliberately. On a solo submission a bot that requests changes blocks the only
+  # person who can merge.
+  request_changes_workflow: false
+  poem: false
+
+  auto_review:
+    enabled: true
+    # Drafts are work in progress; reviewing them trains you to ignore the reviewer.
+    drafts: false
+
+  path_instructions:
+    - path: "**/*.kt"
+      instructions: |
+        Kotlin style rules that are non-negotiable in this project:
+        - No `!!`, no unchecked casts, no empty `catch`. Nullability is handled at the mapper
+          boundary so the UI layer never sees it.
+        - `CancellationException` must propagate. It is never mapped to an AppError, never logged,
+          never shown. If a `catch (e: Exception)` exists, it must rethrow cancellation explicitly.
+        - Sealed interfaces for state and errors, so `when` is exhaustive with no `else`. An `else`
+          in a domain `when` silently swallows the next variant added.
+        - Value classes for identifiers and meaningful primitives; no bare `String` repository ids.
+        - Immutable by default: `val`, read-only collection types, `data class` for state.
+        - KDoc on every public declaration. Comments explain *why*, never *what*.
+        - Explicit API mode is strict on library modules: public declarations need explicit
+          visibility and return types.
+        Flag any hardcoded user-facing string; all of them belong in :core:designsystem resources.
+
+    - path: "domain/**"
+      instructions: |
+        This module may depend on :core:common and nothing else. Flag any import of Ktor, Compose,
+        a DTO, kotlinx.serialization, or any androidx/JetBrains-androidx type as a layering
+        violation — the fix is upstream, never a workaround here.
+        Use cases return `Outcome<T>`, never `kotlin.Result` and never a raw domain type for a
+        fallible operation. Ports are interfaces declared here and implemented in :data:github.
+
+    - path: "data/github/**"
+      instructions: |
+        This is the anticorruption layer. DTOs must not escape this module — flag any DTO appearing
+        in a public signature.
+        The critical correctness rule: watcher count comes from `subscribers_count` on
+        `GET /repos/{owner}/{repo}`. GitHub's `watchers_count` is a frozen alias for
+        `stargazers_count` and returns stars on both endpoints, so binding both from one response
+        shows identical numbers on every repository. Flag any use of `watchers_count`.
+        The detail model is built entirely from the detail response. Flag any code that carries
+        search-index numbers (stars, forks, open issues) onto the detail screen, because the search
+        index lags and the screen would show two different ages of truth.
+        `open_issues_count` includes pull requests; it must be labelled accurately.
+        Mappers normalise nullability here — `language` is legitimately null. JSON must be lenient
+        (`ignoreUnknownKeys`), because GitHub adds fields.
+
+    - path: "core/network/**"
+      instructions: |
+        - `HttpRequestRetry` must be installed BEFORE `HttpTimeout`, or timeouts are never retried.
+        - All three timeouts set explicitly: request, connect, socket. A request with no timeout is
+          a hang waiting to happen.
+        - Failure translation is centralised in `HttpResponseValidator`. Flag scattered try/catch in
+          repositories.
+        - Retry server errors and timeouts only. Never retry a 4xx.
+        - Rate limits arrive in two shapes and both must be handled: 403/429 with
+          `x-ratelimit-remaining: 0` carrying `x-ratelimit-reset`, and 403/429 carrying
+          `retry-after`. A missing, empty or non-numeric header degrades to a generic error and must
+          never produce an Instant in the past.
+        - Security: never log the Authorization header, a token, or a full response body at any
+          level. Release logging is NONE.
+        - The `q` parameter goes through Ktor `parameters`, never string concatenation.
+        - One HttpClient for the app lifetime. No engine named in commonMain.
+
+    - path: "feature/**"
+      instructions: |
+        - Stateful screen + stateless content. The content takes plain parameters and lambdas and is
+          previewable and testable; the screen holds the Koin wiring.
+        - State is an immutable `data class` of stable types. `List`/`Set`/`Map` are unstable to the
+          Compose compiler — use kotlinx.collections.immutable or annotate `@Immutable`.
+        - `LazyColumn` needs a stable `key`, and `contentType` when rows differ.
+        - `StateFlow` for state, `SharedFlow` for one-shot events. A navigation event modelled as
+          state re-fires on rotation.
+        - Work goes in `viewModelScope`. Never `GlobalScope`, never a Flow collected in `init`
+          without a scope, never a hardcoded dispatcher — inject a DispatcherProvider.
+        - Every screen models loading, empty, error and content as distinct states, and every error
+          state carries a working retry.
+        - Content descriptions on every icon and image; 48dp minimum touch targets.
+
+    - path: "**/*Test.kt"
+      instructions: |
+        - Tests assert behaviour, not implementation. A test that breaks on every refactor is not
+          an asset.
+        - Prefer hand-written fakes over mocking frameworks; mocking is unreliable on Kotlin/Native
+          and couples tests to call sequences. Reach for a mock only when the interaction itself is
+          the specification.
+        - Flow assertions go through Turbine. Flag hand-rolled collection — it races and produces
+          flaky suites.
+        - `runTest` for anything suspending, with an injected TestDispatcher. Never a real one.
+        - Never `Clock.System.now()`; the Clock is injected so rate-limit reset times are fakeable.
+        - Names read as specification: subject + condition + expected outcome. Identifiers stay
+          English — flag any Japanese identifier.
+        - Flag a deleted, weakened or commented-out assertion, and any expected value that looks
+          pasted from actual output.
+
+    - path: "**/*.gradle.kts"
+      instructions: |
+        - Every dependency version comes from gradle/libs.versions.toml. Flag a literal version in
+          a build file, and flag any dynamic version (`+`, `latest.release`) as a reproducibility
+          and supply-chain problem.
+        - Shared modules use the `com.android.kotlin.multiplatform.library` plugin with an
+          `android {}` block. `androidLibrary {}` is deprecated as of AGP 9.4.0, and
+          `org.jetbrains.kotlin.android` is an error since AGP 9.0 because AGP compiles Kotlin.
+        - Module dependencies are one-way. :core:testing is a test-only leaf and must never appear
+          in a `*Main` source set.
+        - Flag anything that could write a secret into a committed file or log one during a build.

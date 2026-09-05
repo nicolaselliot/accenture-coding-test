@@ -1,0 +1,139 @@
+name: CI
+
+# Runs on every pull request and on main. Emulator-backed UI tests are deliberately not here —
+# they arrive with PR15 and run on main and nightly, because emulator jobs are slow and are the
+# flakiest thing in a mobile pipeline.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push supersedes the run in flight. Without this, a branch pushed three times queues three
+# full matrices and the last one is the only answer anybody reads.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege by default. No job here writes to the repository.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # Windows runners default to PowerShell, where ./gradlew and the quoting below behave
+    # differently. One shell across the matrix means one set of failures to reason about.
+    shell: bash
+
+env:
+  # API 37 ships only as minor versions; there is no plain android-37.
+  ANDROID_PLATFORM: platforms;android-37.0
+
+jobs:
+  # Separate, and everything depends on it: gradlew is an executable committed to the repository,
+  # and every other job runs it. Validating it after something has already executed it would be
+  # theatre. distributionSha256Sum in gradle-wrapper.properties pins the distribution; this pins
+  # the JAR, which nothing in the repository enforced before now.
+  validate-wrapper:
+    name: Validate Gradle wrapper
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # checkout writes the job's token into .git/config by default. No step in this
+          # workflow needs authenticated Git, so leaving it there only widens what a later
+          # step could read — and on a pull request some of those steps run code from the
+          # contributor's branch.
+          persist-credentials: false
+      - uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+  # Formatting and static analysis are host-independent, so they run once rather than three times.
+  lint:
+    name: Lint
+    needs: validate-wrapper
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # checkout writes the job's token into .git/config by default. No step in this
+          # workflow needs authenticated Git, so leaving it there only widens what a later
+          # step could read — and on a pull request some of those steps run code from the
+          # contributor's branch.
+          persist-credentials: false
+
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Needed even to lint: AGP is applied to every shared module, so the build cannot be
+      # configured at all without an SDK present.
+      # The platform is installed through the action rather than a `sdkmanager` step: on the
+      # Windows runner the tool is `sdkmanager.bat`, so a bash step calling the bare name fails
+      # with "command not found". The action resolves that per platform.
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
+
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      # ktlintCheck reaches build-logic through an explicit dependency in the root build; detekt
+      # does not, and its commonMain analysis is syntax-only. See docs/adr/0003.
+      - name: ktlint and detekt
+        run: ./gradlew ktlintCheck detekt --stacktrace
+
+      - name: Upload detekt reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: detekt-reports
+          path: '**/build/reports/detekt/'
+          if-no-files-found: ignore
+
+  # Three operating systems, because this project ships a .msi and a .dmg and because OS-specific
+  # defects are real here: a path-separator assumption in the lint configuration was already caught
+  # once, and it only manifests on Windows.
+  build:
+    name: Build (${{ matrix.os }})
+    needs: validate-wrapper
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One OS failing should not hide whether the others are green.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # checkout writes the job's token into .git/config by default. No step in this
+          # workflow needs authenticated Git, so leaving it there only widens what a later
+          # step could read — and on a pull request some of those steps run code from the
+          # contributor's branch.
+          persist-credentials: false
+
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # The platform is installed through the action rather than a `sdkmanager` step: on the
+      # Windows runner the tool is `sdkmanager.bat`, so a bash step calling the bare name fails
+      # with "command not found". The action resolves that per platform.
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
+
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      # `build` is assemble plus check, so this covers the Android APK, Android Lint, the Desktop
+      # JVM target, and — on macOS — the iOS klibs for all three targets.
+      - name: Build and test
+        run: ./gradlew build --stacktrace
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-reports-${{ matrix.os }}
+          path: '**/build/reports/tests/'
+          if-no-files-found: ignore

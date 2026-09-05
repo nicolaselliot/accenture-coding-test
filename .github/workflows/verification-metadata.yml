@@ -1,0 +1,96 @@
+name: Generate dependency verification metadata
+
+# Manual only. This never gates a pull request — it produces a file for review, and enabling
+# verification is a separate, deliberate change.
+#
+# Dependency verification is not host-independent for a Kotlin Multiplatform build: the metadata
+# pins the host's kotlin-native-prebuilt and Skiko native binaries, so a file generated on one
+# machine fails on the other two runners. That is why generation needs the matrix rather than a
+# developer laptop. See docs/adr/0004.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  ANDROID_PLATFORM: platforms;android-37.0
+
+jobs:
+  generate:
+    name: Generate (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # checkout writes the job's token into .git/config by default. No step in this
+          # workflow needs authenticated Git, so leaving it there only widens what a later
+          # step could read — and on a pull request some of those steps run code from the
+          # contributor's branch.
+          persist-credentials: false
+
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # The platform is installed through the action rather than a `sdkmanager` step: on the
+      # Windows runner the tool is `sdkmanager.bat`, so a bash step calling the bare name fails
+      # with "command not found". The action resolves that per platform.
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
+
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      # Against the full task graph, not `help`. Generating from a narrow task records only what
+      # that task resolved, and the first real build then fails on a coordinate that was never
+      # written down — aapt2, in the case that produced ADR-0004.
+      - name: Generate metadata
+        run: ./gradlew --write-verification-metadata sha256 build --stacktrace
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verification-metadata-${{ matrix.os }}
+          path: gradle/verification-metadata.xml
+          if-no-files-found: error
+
+  merge:
+    name: Merge
+    needs: generate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # checkout writes the job's token into .git/config by default. No step in this
+          # workflow needs authenticated Git, so leaving it there only widens what a later
+          # step could read — and on a pull request some of those steps run code from the
+          # contributor's branch.
+          persist-credentials: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: parts
+
+      - name: Merge per-host metadata
+        run: |
+          python3 scripts/merge_verification_metadata.py \
+            -o merged-verification-metadata.xml \
+            parts/verification-metadata-*/verification-metadata.xml
+
+      # Deliberately an artifact, not a commit. The file changes what the build trusts, so it
+      # arrives through a reviewed pull request like any other change.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verification-metadata-merged
+          path: merged-verification-metadata.xml
+          if-no-files-found: error
