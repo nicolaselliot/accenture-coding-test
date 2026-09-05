@@ -26,6 +26,12 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # checkout writes the job's token into .git/config by default. No step in this
+          # workflow needs authenticated Git, so leaving it there only widens what a later
+          # step could read — and on a pull request some of those steps run code from the
+          # contributor's branch.
+          persist-credentials: false
 
       - uses: crazy-max/ghaction-github-labeler@548a7c3603594ec17c819e1239f281a3b801ab4d # v6.0.0
         with:
