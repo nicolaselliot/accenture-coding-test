@@ -1,0 +1,35 @@
+# Formatting is enforced by ktlint, which reads this file. CI gates on it.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+[*.{kt,kts}]
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+# Composables are PascalCase and test names are backticked behaviour sentences; both are
+# deliberate and both trip the default naming rule. Exempt by annotation rather than turning the
+# rule off, so ordinary functions are still checked.
+ktlint_function_naming_ignore_when_annotated_with = Composable, Test
+
+[*.{yml,yaml,json}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{bat,cmd}]
+end_of_line = crlf
+
+# Generated code is not ours to format. The kotlin-dsl plugin emits plugin-spec builders into
+# build/ and ktlint-gradle folds them into the same source set as hand-written files, where neither
+# the extension filter nor a task-level exclude reaches them. ktlint reads .editorconfig itself, so
+# disabling it by path is the mechanism that actually applies.
+[**/build/**]
+ktlint = disabled
