@@ -1,0 +1,28 @@
+version: 2
+
+updates:
+  # GitHub Actions only.
+  #
+  # Every action in .github/workflows is pinned to a full commit SHA rather than a tag, because a
+  # tag is mutable and an action runs arbitrary code with this repository's credentials. Pinning by
+  # SHA removes that risk and replaces it with a maintenance one: nothing tells you a pinned action
+  # has shipped a security fix. Dependabot is what closes that gap — it updates the SHA and rewrites
+  # the trailing version comment, so the pin stays both immutable and current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci
+    labels:
+      - ci
+      - security
+
+  # Gradle is deliberately absent.
+  #
+  # Every dependency version in gradle/libs.versions.toml is a decision recorded in docs/adr, and
+  # the toolchain versions are a determinism contract. A bot opening a pull request per bump would
+  # be arguing with that policy weekly, and the useful signal — "this version was chosen, here is
+  # why" — would drown in noise. Dependency updates here are deliberate, reviewed, and land with an
+  # ADR.
