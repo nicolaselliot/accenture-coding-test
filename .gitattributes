@@ -1,0 +1,43 @@
+# Line endings are decided here, in version control, not by each contributor's `core.autocrlf`.
+# A global git setting cannot bind CI or anyone else who clones, and it silently differs per
+# machine; this file makes a checkout byte-identical on macOS, Linux and Windows.
+#
+# Mirrors .editorconfig: LF everywhere, CRLF for Windows batch files.
+
+# Normalise text to LF in the repository and in the working tree.
+* text=auto eol=lf
+
+# Windows batch files must keep CRLF. cmd.exe mis-parses an LF-only .bat — labels and `goto` break —
+# so an "unbroken" gradlew.bat would fail on the Windows runner that packages the .msi.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary: never apply end-of-line or text conversion.
+# gradle-wrapper.jar matters most — it is committed, it is executed by every ./gradlew invocation,
+# and EOL munging would corrupt it into an unrunnable build.
+*.jar binary
+*.zip binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.keystore binary
+*.jks binary
+*.apk binary
+*.aab binary
+*.so binary
+*.dylib binary
+*.klib binary
+
+# Generated lockfile-style content: keep diffs readable, never treat as binary.
+gradle/verification-metadata.xml text eol=lf
+
+# Collapse noisy vendored/wrapper diffs in review.
+gradle/wrapper/gradle-wrapper.jar binary linguist-vendored

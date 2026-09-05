@@ -1,0 +1,62 @@
+# Repository labels, kept in version control so the set is reviewable rather than ad hoc.
+# Apply with: gh label create <name> --color <color> --description <desc>   (or a sync action)
+
+# --- Conventional Commit type, mirrored as a label so the PR list reads like the history ---
+- name: feat
+  color: "0E8A16"
+  description: Adds behaviour
+- name: fix
+  color: "D73A4A"
+  description: Corrects behaviour
+- name: refactor
+  color: "FBCA04"
+  description: Changes neither behaviour nor interface
+- name: test
+  color: "BFD4F2"
+  description: Tests only
+- name: docs
+  color: "0075CA"
+  description: Documentation only
+- name: ci
+  color: "5319E7"
+  description: Pipelines and automation
+- name: build
+  color: "5319E7"
+  description: Build system, dependencies, tooling
+- name: chore
+  color: "CFD3D7"
+  description: Housekeeping with no production impact
+
+# --- Applied by the issue templates in .github/ISSUE_TEMPLATE ---
+- name: bug
+  color: "D73A4A"
+  description: Something behaves incorrectly
+- name: task
+  color: "0E8A16"
+  description: A unit of planned work
+
+# --- Area, so a reviewer can tell what a PR touches without opening it ---
+- name: "area: core"
+  color: "1D76DB"
+- name: "area: domain"
+  color: "1D76DB"
+- name: "area: data"
+  color: "1D76DB"
+- name: "area: feature"
+  color: "1D76DB"
+- name: "area: android"
+  color: "3DDC84"
+- name: "area: ios"
+  color: "999999"
+- name: "area: desktop"
+  color: "6E5494"
+
+# --- Cross-cutting concerns that change how carefully a PR is read ---
+- name: security
+  color: "B60205"
+  description: Touches secrets, auth, network trust, or build variants
+- name: adr
+  color: "D4C5F9"
+  description: Carries an architecture decision record
+- name: blocked
+  color: "000000"
