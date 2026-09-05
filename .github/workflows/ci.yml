@@ -56,8 +56,12 @@ jobs:
 
       # Needed even to lint: AGP is applied to every shared module, so the build cannot be
       # configured at all without an SDK present.
+      # The platform is installed through the action rather than a `sdkmanager` step: on the
+      # Windows runner the tool is `sdkmanager.bat`, so a bash step calling the bare name fails
+      # with "command not found". The action resolves that per platform.
       - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-      - run: sdkmanager "$ANDROID_PLATFORM"
+        with:
+          packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
 
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
@@ -94,8 +98,12 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      # The platform is installed through the action rather than a `sdkmanager` step: on the
+      # Windows runner the tool is `sdkmanager.bat`, so a bash step calling the bare name fails
+      # with "command not found". The action resolves that per platform.
       - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-      - run: sdkmanager "$ANDROID_PLATFORM"
+        with:
+          packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
 
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
