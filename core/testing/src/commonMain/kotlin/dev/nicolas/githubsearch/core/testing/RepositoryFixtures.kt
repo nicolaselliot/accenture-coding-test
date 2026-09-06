@@ -15,6 +15,10 @@ public val KOTLIN_SUMMARY: RepositorySummary =
         stars = 51_234,
     )
 
+/**
+ * Coordinates for [LINUX_DETAIL], shared so a test asserting which repository was requested and
+ * a test asserting what came back cannot drift onto different repositories.
+ */
 public val LINUX_COORDINATES: RepositoryCoordinates = RepositoryCoordinates("torvalds", "linux")
 
 /** torvalds/linux's real GitHub id, so the fixture matches something a reviewer can look up. */

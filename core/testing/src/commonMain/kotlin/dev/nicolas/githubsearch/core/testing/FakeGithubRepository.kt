@@ -24,22 +24,31 @@ public class FakeGithubRepository(
     private val searchResult: Outcome<List<RepositorySummary>> = Outcome.Success(listOf(KOTLIN_SUMMARY)),
     private val detailResult: Outcome<RepositoryDetail> = Outcome.Success(LINUX_DETAIL),
 ) : GithubRepositoryPort {
-    /** Every `(query, page)` this fake was asked for, in order. */
-    public val searches: MutableList<Pair<String, Int>> = mutableListOf()
+    private val recordedSearches = mutableListOf<Pair<String, Int>>()
+    private val recordedDetails = mutableListOf<RepositoryCoordinates>()
 
-    /** Every coordinate this fake was asked for, in order. */
-    public val details: MutableList<RepositoryCoordinates> = mutableListOf()
+    /**
+     * Every `(query, page)` this fake was asked for, in order.
+     *
+     * Read-only on purpose. Exposed as `MutableList` a test could clear or append to the history it
+     * is about to assert on, so a delegation assertion could pass against a record the test wrote
+     * itself.
+     */
+    public val searches: List<Pair<String, Int>> get() = recordedSearches
+
+    /** Every coordinate this fake was asked for, in order. Read-only, for the same reason. */
+    public val details: List<RepositoryCoordinates> get() = recordedDetails
 
     override suspend fun search(
         query: String,
         page: Int,
     ): Outcome<List<RepositorySummary>> {
-        searches += query to page
+        recordedSearches += query to page
         return searchResult
     }
 
     override suspend fun detail(coordinates: RepositoryCoordinates): Outcome<RepositoryDetail> {
-        details += coordinates
+        recordedDetails += coordinates
         return detailResult
     }
 }
