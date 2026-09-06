@@ -114,7 +114,11 @@ reviews:
           the specification.
         - Flow assertions go through Turbine. Flag hand-rolled collection — it races and produces
           flaky suites.
-        - `runTest` for anything suspending, with an injected TestDispatcher. Never a real one.
+        - `runTest` for anything suspending. Where the code under test chooses a dispatcher,
+          inject a TestDispatcher into *that code* so virtual time stays under the test's
+          control. Do not ask for a dispatcher to be passed to `runTest` itself: it already
+          supplies one, and passing an explicit one matters only when a scheduler must be
+          shared with the subject.
         - Never `Clock.System.now()`; the Clock is injected so rate-limit reset times are fakeable.
         - Names read as specification: subject + condition + expected outcome. Identifiers stay
           English — flag any Japanese identifier. The name IS the documentation: do not ask for
