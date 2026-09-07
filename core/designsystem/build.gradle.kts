@@ -24,6 +24,18 @@ kotlin {
             api(compose.foundation)
             api(compose.animation)
             api(compose.ui)
+
+            // The string bundle. api, not implementation: feature modules read Res off this
+            // module, so the resource runtime has to be on their compile classpath too.
+            api(compose.components.resources)
         }
     }
+}
+
+compose.resources {
+    // The generated Res class is internal by default, which would make it unreachable from the
+    // feature modules this bundle exists to serve. Naming the package as well keeps the import
+    // stable if the module is ever renamed.
+    publicResClass = true
+    packageOfResClass = "dev.nicolas.githubsearch.core.designsystem.generated.resources"
 }
