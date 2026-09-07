@@ -1,5 +1,6 @@
 package dev.nicolas.githubsearch.data.github
 
+import dev.nicolas.githubsearch.core.common.DispatcherProvider
 import dev.nicolas.githubsearch.core.common.Outcome
 import dev.nicolas.githubsearch.core.network.githubCall
 import dev.nicolas.githubsearch.domain.GithubRepositoryPort
@@ -29,6 +30,7 @@ import kotlin.time.Clock
 public class GithubRepository(
     private val client: HttpClient,
     clock: Clock,
+    private val dispatchers: DispatcherProvider,
 ) : GithubRepositoryPort {
     /**
      * Owned rather than injected: the cache is this implementation's private business, and nothing
@@ -51,7 +53,7 @@ public class GithubRepository(
         query: String,
         page: Int,
     ): Outcome<List<RepositorySummary>> =
-        githubCall {
+        githubCall(dispatchers) {
             client
                 .get("search/repositories") {
                     // Through Ktor's parameter API rather than string concatenation, so a query
@@ -81,7 +83,7 @@ public class GithubRepository(
      */
     override suspend fun detail(coordinates: RepositoryCoordinates): Outcome<RepositoryDetail> =
         detailCache.getOrFetch(coordinates) {
-            githubCall {
+            githubCall(dispatchers) {
                 // Interpolated, but not unvalidated. RepositoryCoordinates rejects, at
                 // construction, any half that is blank, contains a path separator or a percent,
                 // question mark or hash, holds whitespace or a control character, or is a
