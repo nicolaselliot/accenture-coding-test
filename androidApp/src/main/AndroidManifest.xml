@@ -9,11 +9,26 @@
       variants more often than anyone expects.
     -->
     <application
+        android:name=".GithubSearchApplication"
         android:allowBackup="false"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:usesCleartextTraffic="false">
-        <!-- The launcher activity arrives with the entry points in PR10. -->
+        <!--
+          A platform NoActionBar theme, not an AppCompat one: Compose draws every pixel of this
+          app, so the only thing the theme decides is the window background shown for the frame
+          before the first composition. Using an AppCompat theme would mean an AppCompat
+          dependency for that one frame.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.GithubSearch">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Only the pre-composition window background. Everything after the first frame is drawn by
+      AppTheme in :core:designsystem, so this exists purely so the launch frame is not a white
+      flash in dark mode — see values-night.
+    -->
+    <style name="Theme.GithubSearch" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#F9F9FF</item>
+    </style>
+</resources>
