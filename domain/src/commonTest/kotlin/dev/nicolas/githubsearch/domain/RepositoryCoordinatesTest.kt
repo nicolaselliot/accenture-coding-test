@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 
 class RepositoryCoordinatesTest {
     @Test
@@ -62,5 +63,62 @@ class RepositoryCoordinatesTest {
         // coordinate restored from a navigation key after process death has no other net.
         assertFailsWith<IllegalArgumentException> { RepositoryCoordinates(owner = "..", name = "..") }
         assertFailsWith<IllegalArgumentException> { RepositoryCoordinates(owner = ".", name = "kotlin") }
+    }
+
+    @Test
+    fun `parse reads a well formed owner and name`() {
+        val parsed = RepositoryCoordinates.parse("JetBrains/kotlin")
+
+        assertEquals(RepositoryCoordinates(owner = "JetBrains", name = "kotlin"), parsed)
+    }
+
+    @Test
+    fun `parse returns null when the separator is missing or repeated`() {
+        // Total where the constructor throws, so a caller at a wire boundary can translate a bad
+        // value into its own error vocabulary instead of guessing which exception init raises.
+        assertNull(RepositoryCoordinates.parse("kotlin"))
+        assertNull(RepositoryCoordinates.parse("a/b/c"))
+        assertNull(RepositoryCoordinates.parse(""))
+    }
+
+    @Test
+    fun `parse returns null when a half is blank`() {
+        // These split into exactly two parts, so a segment count check alone lets them through.
+        assertNull(RepositoryCoordinates.parse("a/"))
+        assertNull(RepositoryCoordinates.parse("/b"))
+        assertNull(RepositoryCoordinates.parse("/"))
+    }
+
+    @Test
+    fun `parse returns null when a half is a traversal segment`() {
+        assertNull(RepositoryCoordinates.parse("./kotlin"))
+        assertNull(RepositoryCoordinates.parse("JetBrains/.."))
+    }
+
+    @Test
+    fun `a half that could restructure the request path is rejected`() {
+        // The literal '/' and ".." are not the only ways out. The path handed to Ktor is treated
+        // as already percent-encoded and stored verbatim, so an encoded separator or traversal
+        // ("%2F", "%2e%2e") would reach the wire as authored — and '?' or '#' would be read
+        // structurally as the start of a query or fragment. None of these characters occurs in a
+        // GitHub owner or repository name, so rejecting them cannot refuse valid data.
+        listOf("%2e%2e", "%2F", "a?b", "a#b", "a b", "a\u0000b", "a\nb").forEach { hostile ->
+            assertFailsWith<IllegalArgumentException>("owner \"$hostile\" should be rejected") {
+                RepositoryCoordinates(owner = hostile, name = "kotlin")
+            }
+            assertFailsWith<IllegalArgumentException>("name \"$hostile\" should be rejected") {
+                RepositoryCoordinates(owner = "JetBrains", name = hostile)
+            }
+            assertNull(RepositoryCoordinates.parse("$hostile/kotlin"))
+        }
+    }
+
+    @Test
+    fun `ordinary GitHub names are still accepted`() {
+        // The guard above is a denylist of path-structuring characters, not a charset allowlist —
+        // so dots, dashes and underscores, which GitHub does allow, must still pass.
+        listOf("kotlinx.coroutines", "some-repo", "some_repo", "repo.js", "a1").forEach { valid ->
+            assertEquals(valid, RepositoryCoordinates(owner = "JetBrains", name = valid).name)
+        }
     }
 }
