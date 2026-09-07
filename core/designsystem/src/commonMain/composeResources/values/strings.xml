@@ -3,25 +3,45 @@
   Every user-facing string in the application. One bundle in one module, so `Res` is generated
   once and a translation has a single surface. English is the base locale; `values-ja` arrives in
   PR12 alongside the locale-aware number formatting.
+
+  Names are prefixed by what owns them: no prefix for anything more than one screen renders,
+  `search_` and `detail_` for the rest. The unprefixed group exists because both screens map the
+  same `AppError` hierarchy and both draw an owner avatar — duplicating those per screen is how
+  two translations of one sentence end up disagreeing.
 -->
 <resources>
-    <string name="search_title">Repository search</string>
+    <!-- Shared. -->
+    <string name="action_retry">Retry</string>
+    <string name="owner_avatar">Avatar of %1$s</string>
+    <string name="language_unknown">Language not detected</string>
+
+    <string name="error_network">No connection. Check your network and try again.</string>
+    <string name="error_rate_limited">GitHub\'s rate limit was reached. Wait a moment and try again.</string>
+    <string name="error_not_found">That repository could not be found.</string>
+    <string name="error_unauthorized">The configured access token was rejected.</string>
+    <string name="error_unknown">Something went wrong. Try again.</string>
+
+    <!-- Search. -->
     <string name="search_field_label">Search repositories</string>
     <string name="search_action">Search</string>
-    <string name="search_retry">Retry</string>
-
     <string name="search_idle">Enter a keyword to search GitHub repositories.</string>
     <string name="search_empty">No repositories matched that keyword.</string>
     <string name="search_loading">Searching</string>
-
-    <string name="search_error_network">No connection. Check your network and try again.</string>
-    <string name="search_error_rate_limited">GitHub\'s rate limit was reached. Wait a moment and try again.</string>
-    <string name="search_error_not_found">That repository could not be found.</string>
-    <string name="search_error_unauthorized">The configured access token was rejected.</string>
-    <string name="search_error_unknown">Something went wrong. Try again.</string>
     <string name="search_append_failed">Could not load more results.</string>
-
-    <string name="search_owner_avatar">Avatar of %1$s</string>
     <string name="search_stars">%1$s stars</string>
-    <string name="search_language_unknown">Language not detected</string>
+
+    <!-- Detail. -->
+    <string name="detail_loading">Loading repository</string>
+    <!-- Just "Back": a deep link or a restored back stack can reach this screen with no
+         results behind it, so naming the destination would sometimes be wrong. -->
+    <string name="detail_back">Back</string>
+    <string name="detail_language">Language</string>
+    <string name="detail_stars">Stars</string>
+    <string name="detail_watchers">Watchers</string>
+    <string name="detail_forks">Forks</string>
+    <!--
+      Named for what GitHub actually counts. `open_issues_count` includes pull requests, and a
+      label reading "Open issues" would be quietly wrong on every repository that has any.
+    -->
+    <string name="detail_open_issues">Open issues &amp; pull requests</string>
 </resources>

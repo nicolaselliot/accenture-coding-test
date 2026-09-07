@@ -37,20 +37,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import coil3.compose.AsyncImage
 import dev.nicolas.githubsearch.core.common.AppError
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.Res
+import dev.nicolas.githubsearch.core.designsystem.generated.resources.action_retry
+import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_network
+import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_not_found
+import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_rate_limited
+import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_unauthorized
+import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_unknown
+import dev.nicolas.githubsearch.core.designsystem.generated.resources.language_unknown
+import dev.nicolas.githubsearch.core.designsystem.generated.resources.owner_avatar
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_action
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_append_failed
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_empty
-import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_error_network
-import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_error_not_found
-import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_error_rate_limited
-import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_error_unauthorized
-import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_error_unknown
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_field_label
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_idle
-import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_language_unknown
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_loading
-import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_owner_avatar
-import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_retry
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_stars
 import dev.nicolas.githubsearch.core.designsystem.theme.Spacing
 import dev.nicolas.githubsearch.domain.RepositoryCoordinates
@@ -204,7 +204,7 @@ private fun RepositoryRow(
             Text(
                 // Null language is legitimate, so the row says so rather than rendering a blank
                 // line that reads as a layout bug.
-                text = summary.language ?: stringResource(Res.string.search_language_unknown),
+                text = summary.language ?: stringResource(Res.string.language_unknown),
             )
         },
         leadingContent = {
@@ -213,7 +213,7 @@ private fun RepositoryRow(
                 // Named, not decorative: the owner is information the row conveys, and a screen
                 // reader announcing "image" would drop it.
                 contentDescription =
-                    stringResource(Res.string.search_owner_avatar, summary.coordinates.owner),
+                    stringResource(Res.string.owner_avatar, summary.coordinates.owner),
                 modifier = Modifier.size(Spacing.avatarSize).clip(CircleShape),
             )
         },
@@ -265,7 +265,7 @@ private fun FailureMessage(
             onClick = onRetry,
             modifier = Modifier.heightIn(min = Spacing.minimumTouchTarget),
         ) {
-            Text(stringResource(Res.string.search_retry))
+            Text(stringResource(Res.string.action_retry))
         }
     }
 }
@@ -298,12 +298,12 @@ private fun LoadingIndicator() {
  */
 private fun messageFor(error: AppError): StringResource =
     when (error) {
-        AppError.Network -> Res.string.search_error_network
-        is AppError.RateLimited -> Res.string.search_error_rate_limited
-        AppError.NotFound -> Res.string.search_error_not_found
-        AppError.Unauthorized -> Res.string.search_error_unauthorized
-        is AppError.Serialization -> Res.string.search_error_unknown
-        is AppError.Unknown -> Res.string.search_error_unknown
+        AppError.Network -> Res.string.error_network
+        is AppError.RateLimited -> Res.string.error_rate_limited
+        AppError.NotFound -> Res.string.error_not_found
+        AppError.Unauthorized -> Res.string.error_unauthorized
+        is AppError.Serialization -> Res.string.error_unknown
+        is AppError.Unknown -> Res.string.error_unknown
     }
 
 private const val APPEND_KEY = "append"

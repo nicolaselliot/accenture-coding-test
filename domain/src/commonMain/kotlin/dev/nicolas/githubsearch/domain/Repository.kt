@@ -2,14 +2,15 @@ package dev.nicolas.githubsearch.domain
 
 import kotlin.jvm.JvmInline
 
+/** The two segments that traverse rather than name, rejected in either half of a coordinate. */
+private val TRAVERSAL_SEGMENTS = setOf(".", "..")
+
 /**
  * A repository's GitHub id.
  *
  * A value class rather than a bare `Long` so it cannot be passed where a star count or a page
  * number is expected. The mistake it prevents compiles perfectly well otherwise.
  */
-private val TRAVERSAL_SEGMENTS = setOf(".", "..")
-
 @JvmInline
 public value class RepositoryId(
     public val value: Long,
