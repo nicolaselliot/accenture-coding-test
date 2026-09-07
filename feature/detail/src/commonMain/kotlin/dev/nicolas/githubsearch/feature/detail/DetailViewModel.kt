@@ -30,6 +30,17 @@ public class DetailViewModel(
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(DetailUiState(coordinates = coordinates))
 
+    /**
+     * The screen's state.
+     *
+     * Read-only, so nothing outside this class can move the screen into a phase the ViewModel did
+     * not decide. The phases are a small state machine — arriving loads, a failure offers retry,
+     * a retry returns to loading — and a second writer is how one ends up drawing a spinner over
+     * content that has already arrived.
+     *
+     * A `StateFlow` rather than a `SharedFlow` because a renderer that subscribes late still has
+     * to learn the phase the screen is *in*, not merely the next change to it.
+     */
     public val state: StateFlow<DetailUiState> = mutableState.asStateFlow()
 
     /** The in-flight request, held so a retry cannot run a second one alongside it. */

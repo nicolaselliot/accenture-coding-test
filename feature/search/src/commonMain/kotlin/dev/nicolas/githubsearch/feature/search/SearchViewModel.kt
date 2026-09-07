@@ -64,6 +64,18 @@ public class SearchViewModel(
 
     private val mutableState = MutableStateFlow(SearchUiState(query = restoredQuery))
 
+    /**
+     * The screen's state.
+     *
+     * Read-only for the same reason the detail screen's is: the phases are a state machine, and a
+     * writer outside this class could move the screen into one the ViewModel never chose. It
+     * matters more here, because the paging flags live inside [SearchPhase.Content] — an outside
+     * write clearing `isAppending` would let load-more issue a second request for a page already
+     * in flight, out of ten a minute.
+     *
+     * A `StateFlow` rather than a `SharedFlow` because a renderer that subscribes late still has
+     * to learn the phase the screen is *in*, not merely the next change to it.
+     */
     public val state: StateFlow<SearchUiState> = mutableState.asStateFlow()
 
     /** The in-flight search, held so a query change can cancel it rather than race it. */
