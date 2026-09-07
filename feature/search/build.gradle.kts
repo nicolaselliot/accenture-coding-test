@@ -14,7 +14,9 @@ kotlin {
             // ViewModel and SavedStateHandle are named in SearchViewModel's own declaration.
             // Both arrive through -compose transitively; declared because they are used directly.
             implementation(libs.androidx.lifecycle.viewmodel)
-            implementation(libs.androidx.lifecycle.viewmodelSavedstate)
+            // api: SearchViewModel's public constructor names SavedStateHandle, so whoever
+            // composes it — and whoever checks the graph — needs the type.
+            api(libs.androidx.lifecycle.viewmodelSavedstate)
             // koinViewModel() and collectAsStateWithLifecycle(), used by the stateful screen only.
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)

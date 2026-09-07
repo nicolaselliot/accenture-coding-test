@@ -14,7 +14,9 @@ kotlin {
             // :domain's own api(:core:common), but a module should declare what it exposes.
             api(project(":core:common"))
             implementation(project(":core:network"))
-            implementation(libs.ktor.client.core)
+            // api for the same reason as :domain above: GithubRepository's public constructor
+            // names HttpClient, so whoever composes it needs the type.
+            api(libs.ktor.client.core)
             // DetailCache guards its map with a Mutex. Without this line it compiles only through
             // :domain -> :core:common -> api(coroutines), so narrowing that far-away `api` would
             // break this module.
