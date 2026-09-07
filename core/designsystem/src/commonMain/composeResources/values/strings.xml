@@ -5,7 +5,6 @@
   PR12 alongside the locale-aware number formatting.
 -->
 <resources>
-    <string name="search_title">Repository search</string>
     <string name="search_field_label">Search repositories</string>
     <string name="search_action">Search</string>
     <string name="search_retry">Retry</string>
