@@ -50,7 +50,9 @@ kotlin {
 
     jvm("desktop")
 
-    iosX64()
+    // No iosX64: Compose Multiplatform stopped publishing for the Intel iOS simulator after
+    // 1.11.0-alpha01, so `runtime-iosx64:1.12.0` does not exist. Device (iosArm64) and the Apple
+    // Silicon simulator (iosSimulatorArm64) are the two that ship. See docs/adr/0007.
     iosArm64()
     iosSimulatorArm64()
 

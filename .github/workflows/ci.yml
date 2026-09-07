@@ -126,7 +126,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       # `build` is assemble plus check, so this covers the Android APK, Android Lint, the Desktop
-      # JVM target, and — on macOS — the iOS klibs for all three targets.
+      # JVM target, and — on macOS — the iOS klibs for both targets (see docs/adr/0007).
       - name: Build and test
         run: ./gradlew build --stacktrace
 
