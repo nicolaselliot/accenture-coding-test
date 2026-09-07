@@ -150,20 +150,25 @@ private fun ResultList(
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         // A stable key per row, so an appended page does not recompose the rows already drawn and
-        // scroll position survives the insertion.
-        items(items = phase.repositories, key = { it.id.value }) { summary ->
+        // scroll position survives the insertion. contentType as well, because the footer below is
+        // a different shape — without it Lazy layout tries to reuse a row's slot for the footer.
+        items(
+            items = phase.repositories,
+            key = { it.id.value },
+            contentType = { ROW_CONTENT_TYPE },
+        ) { summary ->
             RepositoryRow(summary = summary, onClick = { actions.onRepositoryClick(summary.coordinates) })
             HorizontalDivider()
         }
 
         if (phase.appendError != null) {
-            item(key = APPEND_FAILED_KEY) {
+            item(key = APPEND_FAILED_KEY, contentType = APPEND_FAILED_CONTENT_TYPE) {
                 // Names what failed rather than why: the results above are intact, and "could not
                 // load more" is the part that distinguishes this from the full-screen error state.
                 FailureMessage(Res.string.search_append_failed, onRetry = actions.onRetry)
             }
         } else if (phase.hasMore) {
-            item(key = APPEND_KEY) {
+            item(key = APPEND_KEY, contentType = APPEND_CONTENT_TYPE) {
                 // The footer entering composition *is* the end-of-list signal. It re-fires while
                 // the footer stays visible, which is why the ViewModel refuses a second append
                 // while one is in flight rather than relying on this firing exactly once.
@@ -298,3 +303,7 @@ private fun messageFor(error: AppError): StringResource =
 
 private const val APPEND_KEY = "append"
 private const val APPEND_FAILED_KEY = "append-failed"
+
+private const val ROW_CONTENT_TYPE = "repository"
+private const val APPEND_CONTENT_TYPE = "append"
+private const val APPEND_FAILED_CONTENT_TYPE = "append-failed"
