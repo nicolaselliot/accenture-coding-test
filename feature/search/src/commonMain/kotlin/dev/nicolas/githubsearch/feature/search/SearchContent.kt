@@ -80,14 +80,20 @@ public fun SearchContent(
             onSubmit = actions.onSubmit,
         )
 
-        // Exhaustive with no `else`: a phase added later has to be drawn deliberately rather than
-        // falling into whichever branch happened to be last.
-        when (val phase = state.phase) {
-            SearchPhase.Idle -> CentredMessage(Res.string.search_idle)
-            SearchPhase.Loading -> LoadingIndicator()
-            SearchPhase.Empty -> CentredMessage(Res.string.search_empty)
-            is SearchPhase.Failed -> FailureMessage(error = phase.error, onRetry = actions.onRetry)
-            is SearchPhase.Content -> ResultList(phase = phase, actions = actions)
+        // weight, not fillMaxSize on the list itself: the results area gets the height left over
+        // once the search field has been measured, which is what bounds the scrolling list. A
+        // child that fills the whole column would push its last rows past the viewport. Boxing the
+        // `when` applies that to all five phases rather than only to the one that scrolls.
+        Box(modifier = Modifier.weight(1f)) {
+            // Exhaustive with no `else`: a phase added later has to be drawn deliberately rather
+            // than falling into whichever branch happened to be last.
+            when (val phase = state.phase) {
+                SearchPhase.Idle -> CentredMessage(Res.string.search_idle)
+                SearchPhase.Loading -> LoadingIndicator()
+                SearchPhase.Empty -> CentredMessage(Res.string.search_empty)
+                is SearchPhase.Failed -> FailureMessage(error = phase.error, onRetry = actions.onRetry)
+                is SearchPhase.Content -> ResultList(phase = phase, actions = actions)
+            }
         }
     }
 }
