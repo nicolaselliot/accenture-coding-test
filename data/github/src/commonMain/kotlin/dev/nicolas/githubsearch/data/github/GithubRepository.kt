@@ -36,6 +36,17 @@ public class GithubRepository(
      */
     private val detailCache = DetailCache(clock)
 
+    /**
+     * One page of search results, straight from the API every time.
+     *
+     * Deliberately uncached, unlike [detail]. Search results are the volatile half of this API —
+     * ranking shifts and star counts move — and a stale page is more misleading than a fresh
+     * request is expensive. The rate limit points the same way: 10 requests a minute
+     * unauthenticated is the reviewer's budget, but it is spent on *submits*, which the caller
+     * already gates, rather than on repeat views of one result set.
+     *
+     * Every failure arrives as [Outcome.Failure]; no exception crosses this boundary.
+     */
     override suspend fun search(
         query: String,
         page: Int,
@@ -56,6 +67,18 @@ public class GithubRepository(
                 .map { it.toDomain() }
         }
 
+    /**
+     * The authoritative record for one repository, served from a cache within the TTL.
+     *
+     * The caching is documented here rather than on `GithubRepositoryPort` because it is not part
+     * of the promise: the port says only that this returns the authoritative record, and a caller
+     * must not depend on a network hop happening. What it *can* depend on is that a repeat view
+     * inside the window costs nothing, and that a failure is never cached — so the retry every
+     * error state carries does real work.
+     *
+     * That matters because this endpoint allows only 60 requests an hour unauthenticated, which
+     * one request per tap exhausts inside a minute of browsing. See [DetailCache].
+     */
     override suspend fun detail(coordinates: RepositoryCoordinates): Outcome<RepositoryDetail> =
         detailCache.getOrFetch(coordinates) {
             githubCall {

@@ -26,6 +26,13 @@ internal fun RepositoryDetailDto.toDomain(): RepositoryDetail =
         openIssues = openIssuesCount,
     )
 
+/**
+ * The search-index counterpart, carrying only what a list row renders.
+ *
+ * Fewer fields than [RepositoryDetail] by design, not by omission: forks and open issues are
+ * absent because the search index lags the repository record, and the only screen that shows them
+ * is the one with an authoritative response of its own.
+ */
 internal fun RepositoryItemDto.toDomain(): RepositorySummary =
     RepositorySummary(
         id = RepositoryId(id),
