@@ -516,6 +516,9 @@ class SearchViewModelTest {
             // requests, so the same repository legitimately arrives on both. The list keys on id,
             // and a LazyColumn throws on a duplicate key — so this is a crash on live data.
             val ids = (viewModel.state.value.phase as SearchPhase.Content).repositories.map { it.id }
+            // Both halves matter. Distinctness alone would also pass if the append had dropped
+            // every row, so the count pins that only the five repeats were removed.
+            assertEquals(SEARCH_PAGE_SIZE + 25, ids.size)
             assertEquals(ids.distinct().size, ids.size, "the same repository was listed twice")
         }
 
