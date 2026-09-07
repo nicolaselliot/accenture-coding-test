@@ -72,6 +72,10 @@ koin-composeViewmodel = { module = "io.insert-koin:koin-compose-viewmodel", vers
 koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin" }
 
 # --- AndroidX ports ------------------------------------------------------------------------------
+# ViewModel and SavedStateHandle themselves. Both arrive transitively through -compose, but a
+# module that names ViewModel in a declaration declares what it uses.
+androidx-lifecycle-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodelSavedstate = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-savedstate", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodelCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodelNavigation3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "lifecycle" }

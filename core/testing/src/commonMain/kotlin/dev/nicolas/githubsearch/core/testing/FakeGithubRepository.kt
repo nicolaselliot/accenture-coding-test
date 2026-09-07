@@ -19,10 +19,16 @@ import dev.nicolas.githubsearch.domain.RepositorySummary
  *
  * Lives here rather than beside the tests that first needed it so that `:domain`, `:data:github`
  * and both feature modules share one fake instead of maintaining four that drift.
+ *
+ * [searchResultsByPage] answers one page differently from the rest, which is what paging behaviour
+ * needs: "the list ends when a page comes back short" cannot be expressed by a fake that returns
+ * the same page forever. Pages absent from it fall back to [searchResult], so every existing caller
+ * is unaffected.
  */
 public class FakeGithubRepository(
     private val searchResult: Outcome<List<RepositorySummary>> = Outcome.Success(listOf(KOTLIN_SUMMARY)),
     private val detailResult: Outcome<RepositoryDetail> = Outcome.Success(LINUX_DETAIL),
+    private val searchResultsByPage: Map<Int, Outcome<List<RepositorySummary>>> = emptyMap(),
 ) : GithubRepositoryPort {
     private val recordedSearches = mutableListOf<Pair<String, Int>>()
     private val recordedDetails = mutableListOf<RepositoryCoordinates>()
@@ -44,7 +50,7 @@ public class FakeGithubRepository(
         page: Int,
     ): Outcome<List<RepositorySummary>> {
         recordedSearches += query to page
-        return searchResult
+        return searchResultsByPage[page] ?: searchResult
     }
 
     override suspend fun detail(coordinates: RepositoryCoordinates): Outcome<RepositoryDetail> {
