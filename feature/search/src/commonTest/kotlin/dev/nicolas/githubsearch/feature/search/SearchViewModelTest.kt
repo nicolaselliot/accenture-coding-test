@@ -520,6 +520,38 @@ class SearchViewModelTest {
         }
 
     @Test
+    fun `a page of only duplicates still advances so paging can continue`() =
+        runTest {
+            val port =
+                FakeGithubRepository(
+                    searchResult = Outcome.Success(fullPage(1)),
+                    searchResultsByPage =
+                        mapOf(
+                            2 to Outcome.Success(fullPage(1)),
+                            3 to Outcome.Success(fullPage(3)),
+                        ),
+                )
+            val viewModel = viewModel(port)
+
+            viewModel.onQueryChange("kotlin")
+            viewModel.onSubmit()
+            advanceUntilIdle()
+
+            // Page two is the same thirty repositories GitHub already served on page one, which its
+            // shifting search cache genuinely does. De-duplication drops all of them, so the list
+            // does not grow — and the end of the results has *not* been reached.
+            viewModel.onLoadMore()
+            advanceUntilIdle()
+            viewModel.onLoadMore()
+            advanceUntilIdle()
+
+            assertEquals(listOf("kotlin" to 1, "kotlin" to 2, "kotlin" to 3), port.searches)
+            val content = viewModel.state.value.phase as SearchPhase.Content
+            assertTrue(content.hasMore, "a page of repeats is not the end of the results")
+            assertEquals(SEARCH_PAGE_SIZE * 2, content.repositories.size)
+        }
+
+    @Test
     fun `the in flight guard refuses a second append while the first is still running`() =
         runTest {
             val firstGate = CompletableDeferred<Unit>()

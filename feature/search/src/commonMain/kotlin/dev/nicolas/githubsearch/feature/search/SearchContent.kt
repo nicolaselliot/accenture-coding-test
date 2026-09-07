@@ -169,10 +169,15 @@ private fun ResultList(
             }
         } else if (phase.hasMore) {
             item(key = APPEND_KEY, contentType = APPEND_CONTENT_TYPE) {
-                // The footer entering composition *is* the end-of-list signal. It re-fires while
-                // the footer stays visible, which is why the ViewModel refuses a second append
-                // while one is in flight rather than relying on this firing exactly once.
-                LaunchedEffect(phase.repositories.size) { actions.onLoadMore() }
+                // The footer reaching composition is the end-of-list signal, and it has to re-ask
+                // each time an append finishes. Keyed on isAppending rather than on the row count,
+                // because a page GitHub served entirely out of its shifting cache de-duplicates to
+                // nothing — the count would not move, the effect would never restart, and paging
+                // would dead-end with hasMore still true. The ViewModel refuses a second append
+                // while one is in flight, so the true→false transition is the only one that acts.
+                LaunchedEffect(phase.isAppending) {
+                    if (!phase.isAppending) actions.onLoadMore()
+                }
                 LoadingIndicator()
             }
         }
