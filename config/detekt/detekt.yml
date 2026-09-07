@@ -335,6 +335,9 @@ naming:
     excludes: ['**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/desktopTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
     functionPattern: '[a-z][a-zA-Z0-9]*'
     excludeClassPattern: '$^'
+    # A @Composable that emits UI is PascalCase by Compose's own naming convention, and tooling
+    # (previews, the compiler's own diagnostics) assumes it. This is the convention, not an escape.
+    ignoreAnnotated: ['Composable']
   FunctionParameterNaming:
     active: true
     parameterPattern: '[a-z][A-Za-z0-9]*'
