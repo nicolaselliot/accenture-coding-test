@@ -29,4 +29,19 @@
     <string name="search_loading">Searching</string>
     <string name="search_append_failed">Could not load more results.</string>
     <string name="search_stars">%1$s stars</string>
+
+    <!-- Detail. -->
+    <string name="detail_loading">Loading repository</string>
+    <!-- Just "Back": a deep link or a restored back stack can reach this screen with no
+         results behind it, so naming the destination would sometimes be wrong. -->
+    <string name="detail_back">Back</string>
+    <string name="detail_language">Language</string>
+    <string name="detail_stars">Stars</string>
+    <string name="detail_watchers">Watchers</string>
+    <string name="detail_forks">Forks</string>
+    <!--
+      Named for what GitHub actually counts. `open_issues_count` includes pull requests, and a
+      label reading "Open issues" would be quietly wrong on every repository that has any.
+    -->
+    <string name="detail_open_issues">Open issues &amp; pull requests</string>
 </resources>
