@@ -27,29 +27,58 @@ public data class RepositoryCoordinates(
     val name: String,
 ) {
     init {
-        // A half-formed coordinate must not be constructible. Blank halves build the request path
-        // "//kotlin", which GitHub answers with a 404 that reads as a missing repository rather
-        // than as our own malformed input.
-        // Each half must be exactly one safe path segment. Blankness is the obvious failure —
-        // "//kotlin" reads to GitHub as a missing repository rather than as our bad input — but a
-        // slash is the quieter one: RepositoryCoordinates("a/b", "c") would address /repos/a/b/c,
-        // a different repository entirely, with nothing anywhere reporting an error.
-        require(owner.isNotBlank()) { "owner must not be blank" }
-        require(name.isNotBlank()) { "name must not be blank" }
-        require('/' !in owner) { "owner must be a single path segment" }
-        require('/' !in name) { "name must be a single path segment" }
-        // "." and ".." pass every check above and still traverse: /repos/../.. resolves to another
-        // endpoint that answers 200 with JSON which is not a repository, so the user sees a
-        // serialization error instead of rejected input. Rejecting the two traversal segments
-        // rather than whitelisting a charset, so a name GitHub starts allowing does not become a
-        // crash on valid data.
-        require(owner !in TRAVERSAL_SEGMENTS) { "owner must not be a path traversal segment" }
-        require(name !in TRAVERSAL_SEGMENTS) { "name must not be a path traversal segment" }
+        // A half-formed coordinate must not be constructible. Each half has to be exactly one safe
+        // path segment: blankness is the obvious failure — "//kotlin" reads to GitHub as a missing
+        // repository rather than as our bad input — but a slash is the quieter one, because
+        // RepositoryCoordinates("a/b", "c") would address /repos/a/b/c, a different repository
+        // entirely, with nothing anywhere reporting an error. "." and ".." pass both of those and
+        // still traverse.
+        require(isOneSafeSegment(owner)) { "owner must be a single non-traversal path segment" }
+        require(isOneSafeSegment(name)) { "name must be a single non-traversal path segment" }
     }
 
     /** The `owner/name` form, for display and for logging. */
     val fullName: String get() = "$owner/$name"
+
+    public companion object {
+        /**
+         * Reads `"owner/name"`, or returns null when the string is not a usable coordinate.
+         *
+         * Total where the constructor throws, and that is the point. A caller at a wire boundary
+         * has to translate a bad value into its own error vocabulary, and the only alternative is
+         * to catch whatever [init] happens to raise — which couples the caller to this class's
+         * choice of exception and reports the wrong error the moment that changes. Every rule
+         * [init] enforces is enforced here, against the same predicate.
+         */
+        public fun parse(fullName: String): RepositoryCoordinates? =
+            fullName
+                .split('/')
+                .takeIf { halves -> halves.size == 2 && halves.all(::isOneSafeSegment) }
+                ?.let { (owner, name) -> RepositoryCoordinates(owner = owner, name = name) }
+    }
 }
+
+/**
+ * Characters that would let one half restructure the request path rather than sit inside it.
+ *
+ * `%` matters because the path handed to Ktor is treated as *already* percent-encoded and stored
+ * verbatim, so `%2F` and `%2e%2e` would reach the wire as authored — the literal `/` and `..`
+ * guards do not cover their encoded forms. `?` and `#` are read structurally as the start of a
+ * query or fragment. None occurs in a GitHub owner or repository name.
+ */
+private val PATH_STRUCTURING_CHARS = charArrayOf('/', '%', '?', '#')
+
+/**
+ * Whether [segment] is exactly one path segment that cannot traverse or restructure the path.
+ *
+ * A denylist of separators and control characters rather than a charset allowlist, deliberately:
+ * a repository name GitHub starts allowing must not become a crash on valid data. Everything
+ * rejected here is already invalid in a GitHub name, so nothing legitimate is refused.
+ */
+private fun isOneSafeSegment(segment: String): Boolean =
+    segment.isNotBlank() &&
+        segment.none { it in PATH_STRUCTURING_CHARS || it.isWhitespace() || it.isISOControl() } &&
+        segment !in TRAVERSAL_SEGMENTS
 
 /**
  * One row in the search results.
