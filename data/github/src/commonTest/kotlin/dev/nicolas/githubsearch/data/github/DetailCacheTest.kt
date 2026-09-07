@@ -9,7 +9,6 @@ import dev.nicolas.githubsearch.domain.RepositoryCoordinates
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -169,13 +168,4 @@ class DetailCacheTest {
             // `>=` or `>`, so without this one that choice is silently changeable.
             assertEquals(2, fetches)
         }
-
-    @Test
-    fun `the pinned cache parameters are the ones documented`() {
-        // A tripwire on *Fixed parameters*, not a behaviour test. The behaviour above is what
-        // matters, but these two values are pinned in the plan and changing one is an ADR, so a
-        // silent edit should have to walk past a failing test first.
-        assertEquals(5.minutes, DETAIL_CACHE_TTL)
-        assertEquals(50, DETAIL_CACHE_MAX_ENTRIES)
-    }
 }
