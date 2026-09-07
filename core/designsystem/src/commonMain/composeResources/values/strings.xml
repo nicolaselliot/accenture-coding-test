@@ -11,6 +11,12 @@
 -->
 <resources>
     <!-- Shared. -->
+    <!--
+      The application's own name. Duplicated in androidApp's res/values/strings.xml because the
+      Android manifest resolves its label through the platform resource system, before any Compose
+      resource exists; every other consumer reads this one.
+    -->
+    <string name="app_name">GitHub Search</string>
     <string name="action_retry">Retry</string>
     <string name="owner_avatar">Avatar of %1$s</string>
     <string name="language_unknown">Language not detected</string>

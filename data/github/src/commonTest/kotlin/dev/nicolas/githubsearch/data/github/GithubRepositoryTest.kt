@@ -8,6 +8,7 @@ import dev.nicolas.githubsearch.core.testing.FakeClock
 import dev.nicolas.githubsearch.core.testing.KOTLIN_SUMMARY
 import dev.nicolas.githubsearch.core.testing.LINUX_COORDINATES
 import dev.nicolas.githubsearch.core.testing.LINUX_DETAIL
+import dev.nicolas.githubsearch.core.testing.TestDispatcherProvider
 import dev.nicolas.githubsearch.domain.RepositoryCoordinates
 import dev.nicolas.githubsearch.domain.SEARCH_PAGE_SIZE
 import io.ktor.client.HttpClient
@@ -20,6 +21,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Url
 import io.ktor.http.headersOf
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -31,7 +34,7 @@ private const val BASE_URL = "https://api.github.com"
 private val jsonHeaders = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
 
 /** A repository wired to [handler], through the real client configuration. */
-private fun repository(
+private fun TestScope.repository(
     clock: FakeClock = FakeClock(NOW),
     handler: MockRequestHandler,
 ): GithubRepository =
@@ -41,6 +44,10 @@ private fun repository(
                 configureGithubClient(GithubClientConfig(BASE_URL, token = "", clock = clock))
             },
         clock = clock,
+        // One dispatcher for all three roles, sharing this test's scheduler. githubCall hops with
+        // withContext(dispatchers.io), so a provider on its own scheduler would put the request on
+        // a second virtual clock that nothing advances — and every test here would hang.
+        dispatchers = TestDispatcherProvider(StandardTestDispatcher(testScheduler)),
     )
 
 class GithubRepositoryTest {

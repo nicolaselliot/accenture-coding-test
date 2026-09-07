@@ -9,7 +9,10 @@ kotlin {
 
             // No engine is named here. Naming one in commonMain would bind every platform to a
             // single implementation; each target contributes its own below and Ktor resolves it.
-            implementation(libs.ktor.client.core)
+            // api, not implementation: configureGithubClient is a public extension on Ktor's
+            // HttpClientConfig, so that type is this module's ABI — a consumer cannot call it
+            // without Ktor on its own compile classpath.
+            api(libs.ktor.client.core)
             implementation(libs.ktor.client.contentNegotiation)
             implementation(libs.ktor.serialization.kotlinxJson)
             implementation(libs.ktor.client.logging)

@@ -35,6 +35,11 @@ savedstate = "1.4.0"
 windowCore = "1.5.1"
 adaptiveNavigation3 = "1.3.0-beta02"   # beta — only if PR11 takes the adaptive path
 
+# --- Google AndroidX (androidx.*), Android entry point only ---------------------------------------
+# Distinct from the JetBrains ports above: these are Android-only and are consumed by :androidApp,
+# which is not a multiplatform module.
+activity = "1.13.0"
+
 # --- Third party ---------------------------------------------------------------------------------
 ktor = "3.5.2"
 koin = "4.2.2"                         # built against Kotlin 2.3.20, binary-compatible — see README
@@ -83,6 +88,8 @@ androidx-lifecycle-viewmodelNavigation3 = { module = "org.jetbrains.androidx.lif
 androidx-navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
 androidx-savedstate = { module = "org.jetbrains.androidx.savedstate:savedstate", version.ref = "savedstate" }
 androidx-window-core = { module = "org.jetbrains.androidx.window:window-core", version.ref = "windowCore" }
+# Google AndroidX, for the Android entry point only: setContent and enableEdgeToEdge.
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
 compose-adaptive-navigation3 = { module = "org.jetbrains.compose.material3.adaptive:adaptive-navigation3", version.ref = "adaptiveNavigation3" }
 
 # --- Images --------------------------------------------------------------------------------------

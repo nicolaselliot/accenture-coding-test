@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The dark scheme's surface, so the launch frame matches what AppTheme draws next. -->
+    <style name="Theme.GithubSearch" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#12131B</item>
+    </style>
+</resources>
