@@ -25,6 +25,11 @@ kotlin {
             api(compose.animation)
             api(compose.ui)
 
+            // api: rememberWindowSizeClass returns a WindowSizeClass, so that type is this
+            // module's ABI. window-core is the stable line — see docs/adr/0009 for why the
+            // material3-adaptive route was not taken.
+            api(libs.androidx.window.core)
+
             // The string bundle. api, not implementation: feature modules read Res off this
             // module, so the resource runtime has to be on their compile classpath too.
             api(compose.components.resources)
