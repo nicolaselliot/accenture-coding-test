@@ -66,6 +66,9 @@ public fun GithubSearchApp(themeMode: ThemeMode = ThemeMode.System) {
         // here also keeps it a pure function over keys, which is what makes it testable.
         val panes = if (isTwoPane) twoPaneKeys(backStack) else null
 
+        val strategies =
+            remember(panes) { listOf(TwoPaneSceneStrategy(panes), SinglePaneSceneStrategy()) }
+
         // The Surface fills the window and the insets are consumed *inside* it. Padding the
         // Surface itself would shrink the painted area, leaving the status- and navigation-bar
         // bands showing the manifest's windowBackground for the app's whole life rather than only
@@ -79,7 +82,13 @@ public fun GithubSearchApp(themeMode: ThemeMode = ThemeMode.System) {
                 // Two panes when the window is wide enough, falling through to the single-pane
                 // default otherwise. A Scene rather than a Row in place of NavDisplay, so the
                 // entry decorators below apply in both layouts — see TwoPaneScene.
-                sceneStrategies = listOf(TwoPaneSceneStrategy(panes), SinglePaneSceneStrategy()),
+                //
+                // Remembered, and not for tidiness: navigation3 1.1.1 keys its scene state on
+                // `remember(sceneStrategies.toList(), decoratedEntries)`, and neither strategy
+                // class overrides equals. A list rebuilt inline would therefore change that key on
+                // every recomposition — every keystroke in the search field — and throw away the
+                // calculated scenes each time.
+                sceneStrategies = strategies,
                 // Both decorators are load-bearing. Navigation 3 does not scope ViewModels to
                 // entries by default — they stay tied to the host — so without the ViewModel
                 // decorator two detail destinations would share one store and the second would be
