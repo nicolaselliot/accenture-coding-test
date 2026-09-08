@@ -8,6 +8,10 @@
 // NoClassDefFoundError on KotlinMultiplatformExtension.
 
 plugins {
+    // Gives the root the standard lifecycle tasks — `check`, `build`, `assemble`, `clean`. Applied
+    // for `check`: it is what lets `./gradlew build`, the everyday gate, reach into the included
+    // build below. Its `clean` also replaces the hand-written one this file used to declare.
+    base
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.kotlinSerialization) apply false
     alias(libs.plugins.composeMultiplatform) apply false
@@ -33,6 +37,19 @@ tasks.named("ktlintFormat") {
     dependsOn(gradle.includedBuild("build-logic").task(":ktlintFormat"))
 }
 
-tasks.register<Delete>("clean") {
-    delete(rootProject.layout.buildDirectory)
+// Its tests do not run from the main build for the same reason: `./gradlew build` matches the
+// subprojects that have a `build` task, and an included build is not one of them. Named rather
+// than folded into ktlintCheck, so what CI runs says what it verifies.
+val checkBuildLogic =
+    tasks.register("checkBuildLogic") {
+        group = "verification"
+        description = "Runs build-logic's own check task — its unit tests and formatting."
+        dependsOn(gradle.includedBuild("build-logic").task(":check"))
+    }
+
+// On the root's `check`, so the everyday `./gradlew build` runs it. These are the tests that decide
+// whether a prod artifact can carry a token, which makes "CI will catch it" the wrong place for
+// them to live alone: a developer editing the generator would otherwise get a green local gate.
+tasks.named("check") {
+    dependsOn(checkBuildLogic)
 }
