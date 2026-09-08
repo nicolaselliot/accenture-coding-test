@@ -34,7 +34,9 @@ class TwoPaneKeysTest {
 
     @Test
     fun `the deepest selection wins when the stack holds more than one`() {
-        // Reachable by rotating a phone that had pushed two details, then widening.
+        // Not reachable today — nothing pushes a second detail, because the detail screen has no
+        // list to tap. Asserted anyway so the function is total: the next push path added, a deep
+        // link say, should not have to discover what this does with a stack it did not expect.
         val panes = twoPaneKeys(listOf(SearchKey, LINUX, KOTLIN))
 
         assertEquals(TwoPaneKeys(list = SearchKey, detail = KOTLIN), panes)
@@ -77,6 +79,18 @@ class TwoPaneKeysTest {
 
         // Two equal keys are one content key to Navigation 3, and both entry decorators index by
         // it — a duplicate would give the entries one shared ViewModelStore.
+        assertEquals(listOf(SearchKey, LINUX), backStack)
+    }
+
+    @Test
+    fun `selecting an earlier detail leaves exactly one on the stack`() {
+        val backStack = mutableListOf<NavKey>(SearchKey, LINUX, KOTLIN)
+
+        backStack.selectDetail(LINUX, isTwoPane = true)
+
+        // The regression: replacing only the *last* entry would give [list, LINUX, LINUX], two
+        // equal keys and therefore one content key — the shared ViewModelStore defect this
+        // function exists to prevent. Normalising removes every detail before adding the choice.
         assertEquals(listOf(SearchKey, LINUX), backStack)
     }
 

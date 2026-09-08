@@ -50,9 +50,14 @@ internal fun MutableList<NavKey>.selectDetail(
 ) {
     if (lastOrNull() == key) return
 
-    if (isTwoPane && lastOrNull() is DetailKey) {
-        this[lastIndex] = key
-    } else {
-        add(key)
+    if (isTwoPane) {
+        // Every detail, not just the one on top. Replacing only the last entry would turn
+        // [list, A, B] into [list, A, A] when A is selected — two equal keys, which is one content
+        // key to Navigation 3 and the shared-ViewModelStore defect this function's own contract
+        // forbids. Normalising to exactly one detail is correct whatever shape the stack arrives
+        // in, which matters because a later push path would not have to know about this rule.
+        removeAll { it is DetailKey }
     }
+
+    add(key)
 }
