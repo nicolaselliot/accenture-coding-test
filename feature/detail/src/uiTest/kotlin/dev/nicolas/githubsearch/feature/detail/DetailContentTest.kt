@@ -10,6 +10,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -245,7 +246,9 @@ class DetailContentTest {
             onAllNodes(hasClickAction()).assertCountEquals(CLICKABLE_TARGETS)
 
             repeat(CLICKABLE_TARGETS) { index ->
-                onAllNodes(hasClickAction())[index].assertHeightIsAtLeast(Spacing.minimumTouchTarget)
+                onAllNodes(hasClickAction())[index]
+                    .assertHeightIsAtLeast(Spacing.minimumTouchTarget)
+                    .assertWidthIsAtLeast(Spacing.minimumTouchTarget)
             }
         }
 

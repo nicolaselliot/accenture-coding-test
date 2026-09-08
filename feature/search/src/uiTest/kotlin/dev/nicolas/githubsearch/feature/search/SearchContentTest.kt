@@ -15,6 +15,7 @@ import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -335,7 +336,9 @@ class SearchContentTest {
             onAllNodes(hasClickAction()).assertCountEquals(CLICKABLE_TARGETS)
 
             repeat(CLICKABLE_TARGETS) { index ->
-                onAllNodes(hasClickAction())[index].assertHeightIsAtLeast(Spacing.minimumTouchTarget)
+                onAllNodes(hasClickAction())[index]
+                    .assertHeightIsAtLeast(Spacing.minimumTouchTarget)
+                    .assertWidthIsAtLeast(Spacing.minimumTouchTarget)
             }
         }
 
