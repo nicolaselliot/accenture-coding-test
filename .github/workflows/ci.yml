@@ -79,8 +79,11 @@ jobs:
 
       # ktlintCheck reaches build-logic through an explicit dependency in the root build; detekt
       # does not, and its commonMain analysis is syntax-only. See docs/adr/0003.
-      - name: ktlint and detekt
-        run: ./gradlew ktlintCheck detekt --stacktrace
+      # checkBuildLogic runs build-logic's own unit tests. The matrix job below reaches them too —
+      # the root's `check` depends on it — but named here as well, because this job finishes in a
+      # couple of minutes and those tests are what decide whether a prod artifact can carry a token.
+      - name: ktlint, detekt and build-logic tests
+        run: ./gradlew ktlintCheck detekt checkBuildLogic --stacktrace
 
       - name: Upload detekt reports
         if: always()
@@ -127,8 +130,25 @@ jobs:
 
       # `build` is assemble plus check, so this covers the Android APK, Android Lint, the Desktop
       # JVM target, and — on macOS — the iOS klibs for both targets (see docs/adr/0007).
+      #
+      # The dev flavor, because that is the default and `build` assembles only the selected
+      # flavor's variants — see docs/adr/0011.
       - name: Build and test
         run: ./gradlew build --stacktrace
+
+      # The artifact that ships, which the step above cannot reach: one Gradle invocation generates
+      # one AppConfig, so the prod flavor needs an invocation of its own. Without this, the only
+      # Android variants CI ever assembled would be the two nobody installs.
+      #
+      # Once, on one runner: the flavor changes what is compiled into the APK, not how the host
+      # compiles it, so running it three times buys nothing. The Compose resource check is named
+      # explicitly because it hangs off `check` rather than `assemble`, and a release APK with no
+      # resource bundle crashes on its first screen — see docs/adr/0010.
+      - name: Assemble the prod release variant
+        if: matrix.os == 'ubuntu-latest'
+        run: >
+          ./gradlew :androidApp:assembleProdRelease :androidApp:verifyProdReleaseComposeResources
+          -Pgithubsearch.flavor=prod --stacktrace
 
       - name: Upload test reports
         if: always()
