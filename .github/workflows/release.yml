@@ -1,0 +1,376 @@
+name: Release
+
+# The provisional distribution channel: a signed Android APK to Firebase App Distribution, and the
+# Desktop packages built where they can only be built — the .dmg on macOS, the .msi on Windows.
+#
+# Deliberately separate from ci.yml. That workflow runs on every pull request and must stay
+# secret-free; this one is the only place in the repository that touches signing material, and it
+# runs when a human says so. See docs/adr/0013.
+#
+# Two triggers, two outcomes:
+#   workflow_dispatch — build, sign, distribute to testers, and keep the desktop packages as
+#                       workflow artifacts. The way to exercise the pipeline without minting a tag.
+#   a v* tag          — the same, plus every artifact attached to a GitHub Release.
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+# No cancel-in-progress, unlike CI. Superseding a pull-request build is free; interrupting one that
+# is halfway through uploading a release leaves a release with some of its assets.
+concurrency:
+  group: release-${{ github.ref }}
+
+# Least privilege by default; the two jobs that write a release elevate their own.
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # API 37 ships only as minor versions; there is no plain android-37.
+  ANDROID_PLATFORM: platforms;android-37.0
+  # Pinned like every other version in this repository. `npm i -g firebase-tools` unpinned would
+  # make the distribution step depend on whatever was published this morning.
+  FIREBASE_TOOLS_VERSION: 15.29.0
+
+jobs:
+  # Created once, before anything uploads, so two jobs cannot race to create the same release —
+  # and created as a *draft*, so a build that fails halfway does not leave a published release with
+  # no assets in it. The publish job at the bottom is what makes it visible.
+  # Tag builds only: a dispatch has no tag to hang a release on.
+  create-release:
+    name: Create the draft release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Create the draft release if it does not exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists; assets will be added to it."
+          else
+            # The notes come from the commit history this project grades — one green TDD cycle per
+            # commit reads well as a changelog.
+            gh release create "$TAG" --title "$TAG" --generate-notes --draft
+          fi
+
+  android:
+    name: Android — sign and distribute
+    needs: [create-release]
+    # `always()` so a dispatch, where create-release is skipped, still runs. Without it this job
+    # inherits the skip and the dispatch trigger silently does nothing.
+    if: always() && !cancelled() && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Before anything is built, so a missing secret costs seconds rather than a full release
+      # build — and names itself, instead of surfacing as a base64 error or an unsigned APK.
+      - name: Check the release credentials are present
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_APP_ID: ${{ vars.FIREBASE_ANDROID_APP_ID }}
+        run: |
+          missing=()
+          [ -n "$KEYSTORE_BASE64" ] || missing+=("secrets.ANDROID_KEYSTORE_BASE64")
+          [ -n "$KEYSTORE_PASSWORD" ] || missing+=("secrets.ANDROID_KEYSTORE_PASSWORD")
+          [ -n "$KEY_ALIAS" ] || missing+=("secrets.ANDROID_KEY_ALIAS")
+          [ -n "$KEY_PASSWORD" ] || missing+=("secrets.ANDROID_KEY_PASSWORD")
+          [ -n "$FIREBASE_SERVICE_ACCOUNT" ] || missing+=("secrets.FIREBASE_SERVICE_ACCOUNT")
+          [ -n "$FIREBASE_APP_ID" ] || missing+=("vars.FIREBASE_ANDROID_APP_ID")
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Release credentials not configured: ${missing[*]}. See docs/adr/0013."
+            exit 1
+          fi
+
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
+
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      # Into the runner's temporary directory, never the checkout: a key written inside the
+      # workspace is one `upload-artifact` glob away from being published, and it would also be
+      # visible to any later step that walks the tree.
+      - name: Write the upload key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          key="$RUNNER_TEMP/upload-key"
+          # umask before the redirect, not chmod after it: the file must never exist readable, not
+          # even for the instant between the two commands.
+          (umask 077 && printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$key")
+          # Nothing about the key itself, only that a plausible one arrived. An empty or truncated
+          # secret would otherwise fail much later, inside the packaging task.
+          test -s "$key" || { echo "::error::Decoded upload key is empty."; exit 1; }
+
+      # prod/release is what ships, and the flavor has to be named: one Gradle invocation generates
+      # one AppConfig, so :androidApp builds only the selected flavor's variants (docs/adr/0011).
+      # versionCode comes from the run number — Firebase rejects a non-monotonic build number, and a
+      # hand-maintained counter collides the first time two branches ship.
+      # The version the artifacts claim. A tag gives it: `v1.2.0` becomes `1.2.0`, because
+      # jpackage takes three numbers and nothing else, and an APK's versionName should read the
+      # same. A dispatch has no tag, so the pinned default in the convention plugin stands.
+      - name: Derive the version from the tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            echo "RELEASE_VERSION=${TAG#v}" >> "$GITHUB_ENV"
+          else
+            echo "No tag; the build keeps the version pinned in the build files."
+          fi
+
+      # `check` alongside the assemble, not instead of ci.yml: a tag can be placed on a commit that
+      # never reached main, and a dispatch can run from any branch, so without this the artifact
+      # handed to real testers is the one thing in the project no suite has run against.
+      - name: Verify and assemble the signed prod release
+        env:
+          GITHUBSEARCH_KEYSTORE_FILE: ${{ runner.temp }}/upload-key
+          GITHUBSEARCH_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          GITHUBSEARCH_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          GITHUBSEARCH_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: >
+          ./gradlew check
+          :androidApp:assembleProdRelease
+          :androidApp:verifyProdReleaseComposeResources
+          -Pgithubsearch.flavor=prod
+          -PversionCode=${{ github.run_number }}
+          ${RELEASE_VERSION:+-PversionName=$RELEASE_VERSION}
+          --stacktrace
+
+      # The window in which the key exists closes here, before the Firebase CLI and its transitive
+      # tree run in this same job as the same user. `always()` so a failed build does not leave it
+      # behind for the remaining steps either.
+      - name: Remove the upload key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload-key"
+
+      # A green build does not mean a signed APK: the signing config is absent-safe by design, so
+      # a mistyped secret name produces an unsigned artifact and a passing job. This is the gate
+      # that makes that impossible — and it names the APK it verified, so the path is checked too.
+      - name: Verify the APK is signed
+        run: |
+          apk=$(find androidApp/build/outputs/apk/prod/release -name '*.apk' -print -quit)
+          test -n "$apk" || { echo "::error::No prod release APK was produced."; exit 1; }
+          echo "Verifying $apk"
+
+          case "$apk" in
+            *unsigned*)
+              echo "::error::$apk is unsigned — the upload key was not applied. Check the four ANDROID_* secrets."
+              exit 1
+              ;;
+          esac
+
+          # Whichever build-tools AGP installed for this build, newest first. Pinning a version
+          # here would be a second place for the SDK layout to drift.
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          test -n "$apksigner" || { echo "::error::apksigner not found under $ANDROID_HOME/build-tools."; exit 1; }
+
+          "$apksigner" verify --verbose "$apk"
+          echo "APK_PATH=$apk" >> "$GITHUB_ENV"
+
+      # The Firebase CLI rather than the Gradle plugin, so the deploy credential never joins the
+      # build classpath and `./gradlew build` stays the same command everywhere else. See ADR-0013.
+      # Installed before any credential is written, and with lifecycle scripts off. The pin covers
+      # firebase-tools itself; `npm install` still resolves its transitive tree at install time and
+      # would run every dependency's install script — in a step that would otherwise already have
+      # the upload key and the service account sitting on disk. Verified that the CLI works with
+      # scripts ignored.
+      - name: Install the Firebase CLI
+        run: npm install --global --ignore-scripts "firebase-tools@$FIREBASE_TOOLS_VERSION"
+
+      - name: Distribute to testers
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_APP_ID: ${{ vars.FIREBASE_ANDROID_APP_ID }}
+          TESTER_GROUPS: ${{ vars.FIREBASE_TESTER_GROUPS || 'reviewers' }}
+          # Through env, never interpolated into the script below. `${{ }}` is substituted before
+          # the shell parses the line, so quotes do not contain it and a ref name carrying `$(…)`
+          # would execute — in the one job that holds every secret in the repository. Tags are not
+          # covered by main's branch protection, so this is the review gate that ref does not have.
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Outside the workspace, like the key, and removed on the way out.
+          credentials="$RUNNER_TEMP/firebase-service-account.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$credentials"
+          trap 'rm -f "$credentials"' EXIT
+          chmod 600 "$credentials"
+
+          GOOGLE_APPLICATION_CREDENTIALS="$credentials" firebase appdistribution:distribute "$APK_PATH" \
+            --app "$FIREBASE_APP_ID" \
+            --groups "$TESTER_GROUPS" \
+            --release-notes "$TAG (build $GITHUB_RUN_NUMBER, $GITHUB_SHA)"
+
+      - name: Attach the APK to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "$TAG" "$APK_PATH" --clobber
+
+  desktop:
+    name: Desktop — ${{ matrix.package }}
+    needs: [create-release]
+    if: always() && !cancelled() && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped')
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      # One platform failing should not hide whether the other packaged.
+      fail-fast: false
+      matrix:
+        include:
+          # jpackage can only build the installer of the host it runs on, which is the whole reason
+          # this is a matrix rather than one job.
+          - os: macos-latest
+            package: dmg
+          - os: windows-latest
+            package: msi
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          # Temurin, and it matters here beyond consistency: the Compose plugin refuses to package
+          # with a Homebrew JDK (checkJdkVendor), which is why the .dmg cannot be built on this
+          # project's development machine at all.
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          # Needed even here: AGP is applied to every shared module, so the build cannot configure
+          # without an SDK — the Desktop packaging task still has to configure the whole project.
+          packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
+
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      # jpackage shells out to WiX for the .msi and fails without it. Installed rather than assumed:
+      # the runner image has carried it in the past and dropped it before now, and the failure it
+      # produces ("Cannot find WiX tools") arrives after a full build.
+      - name: Ensure WiX 3 is available
+        if: matrix.package == 'msi'
+        run: |
+          # `candle`, deliberately, and not the `wix` dotnet tool: that one is WiX 4+, which only
+          # JDK 22's jpackage can drive. This job runs on JDK 21, which shells out to WiX 3's
+          # candle and light — so a runner carrying `wix` but not `candle` must still install.
+          if command -v candle > /dev/null 2>&1; then
+            echo "WiX 3 already present on the runner."
+          else
+            # Pinned like every other version here. The chocolatey community feed is third-party
+            # code running in the job that produces the installer attached to a public release.
+            choco install wixtoolset --version=3.14.1 --no-progress --yes
+            echo "C:\\Program Files (x86)\\WiX Toolset v3.14\\bin" >> "$GITHUB_PATH"
+          fi
+
+      # A separate step because GITHUB_PATH only affects *later* steps. Without this, a chocolatey
+      # package that installs somewhere else succeeds, the wrong directory joins PATH, and the
+      # failure arrives as a jpackage error after a full build — the late failure the install step
+      # above exists to prevent.
+      - name: Verify WiX is on the path
+        if: matrix.package == 'msi'
+        run: |
+          command -v candle > /dev/null 2>&1 || {
+            echo "::error::WiX 3 installed but candle is not on PATH. Check the install directory."
+            exit 1
+          }
+          candle -? > /dev/null 2>&1 || true
+          echo "candle: $(command -v candle)"
+
+      # The prod flavor names the distribution GitHubSearch rather than GitHubSearchDev, so what a
+      # tester installs does not sit beside a development build (docs/adr/0011).
+      - name: Derive the version from the tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            echo "RELEASE_VERSION=${TAG#v}" >> "$GITHUB_ENV"
+          else
+            echo "No tag; the package keeps the version pinned in the build files."
+          fi
+
+      - name: Package the distribution
+        run: >
+          ./gradlew :desktopApp:packageDistributionForCurrentOS
+          -Pgithubsearch.flavor=prod
+          ${RELEASE_VERSION:+-PpackageVersion=$RELEASE_VERSION}
+          --stacktrace
+
+      - name: Locate the package
+        run: |
+          # Searched from the binaries root rather than the exact subdirectory: the layout under
+          # it is the Compose plugin's business, and this machine cannot package at all — the
+          # Compose plugin refuses a Homebrew JDK — so the path could not be verified before now.
+          # The guard below is what turns a layout change into a named failure rather than a
+          # release with a missing asset.
+          package=$(find desktopApp/build/compose/binaries -name "*.${{ matrix.package }}" -type f -print -quit)
+          test -n "$package" || { echo "::error::No .${{ matrix.package }} was produced."; exit 1; }
+          echo "Packaged $package"
+          echo "PACKAGE_PATH=$package" >> "$GITHUB_ENV"
+
+      # Kept even on a dispatch, which has no release to attach to: the point of a dispatch is to
+      # get the artifact without minting a tag.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-${{ matrix.package }}
+          path: ${{ env.PACKAGE_PATH }}
+          if-no-files-found: error
+
+      - name: Attach the package to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "$TAG" "$PACKAGE_PATH" --clobber
+
+  # The draft becomes a release only once every asset is on it. A build that fails halfway leaves a
+  # draft, which is invisible to anyone not looking for it and can be published by hand after the
+  # fix — where publishing first and uploading second leaves a notified release with missing
+  # downloads, and the `.msi` is the leg most likely to fail on a runner image change.
+  #
+  # Both artifact jobs must succeed, deliberately: a release advertising three downloads and
+  # carrying two is worse than one that arrived a day later.
+  publish-release:
+    name: Publish the release
+    needs: [android, desktop]
+    if: startsWith(github.ref, 'refs/tags/v') && needs.android.result == 'success' && needs.desktop.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # No checkout: `gh` takes the repository from GH_REPO, and this job only edits metadata.
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: gh release edit "$TAG" --draft=false --latest
