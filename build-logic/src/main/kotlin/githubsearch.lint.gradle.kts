@@ -34,6 +34,10 @@ detekt {
     source.setFrom(
         "src/commonMain/kotlin",
         "src/commonTest/kotlin",
+        // The `runComposeUiTest` suites. Named explicitly for the same reason the rest are: detekt
+        // reads the JVM layout and finds nothing in a multiplatform module otherwise, and a source
+        // set left off this list is silently unanalysed rather than reported as missing.
+        "src/uiTest/kotlin",
         "src/androidMain/kotlin",
         "src/desktopMain/kotlin",
         "src/desktopTest/kotlin",

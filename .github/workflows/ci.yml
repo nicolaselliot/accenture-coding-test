@@ -1,8 +1,9 @@
 name: CI
 
-# Runs on every pull request and on main. Emulator-backed UI tests are deliberately not here —
-# they arrive with PR15 and run on main and nightly, because emulator jobs are slow and are the
-# flakiest thing in a mobile pipeline.
+# Runs on every pull request and on main. There is no emulator job anywhere in this pipeline, and
+# none is planned: the Compose UI suite runs on Desktop here and on the iOS simulator on the macOS
+# runner, both inside `./gradlew build`. Android device tests are blocked by two upstream gaps
+# rather than by cost — see docs/adr/0012.
 
 on:
   pull_request:

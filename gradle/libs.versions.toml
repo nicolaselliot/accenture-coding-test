@@ -98,6 +98,10 @@ coil-networkKtor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref
 
 # --- Test ----------------------------------------------------------------------------------------
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
+# `runComposeUiTest` and the semantics matchers. Declared here rather than through the plugin's
+# `compose.uiTest` accessor, which 1.12.0 deprecates in favour of exactly this — and which hid the
+# coordinate from the one file that is supposed to list every version.
+compose-ui-test = { module = "org.jetbrains.compose.ui:ui-test", version.ref = "composeMultiplatform" }
 # For build-logic's own tests only. Every other module gets kotlin.test from the Kotlin plugin, which
 # supplies the version itself; an included build applying `kotlin-dsl` does not, so it is declared
 # here rather than left to resolve against Gradle's embedded Kotlin.

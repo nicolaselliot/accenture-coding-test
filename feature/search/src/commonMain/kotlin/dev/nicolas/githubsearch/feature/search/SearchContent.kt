@@ -76,6 +76,9 @@ import org.jetbrains.compose.resources.stringResource
  * `runComposeUiTest`, so the wired screen is not reachable from a UI test. Everything worth
  * asserting therefore lives here, drivable with a plain state object and lambda spies, while
  * [SearchScreen] holds the wiring the ViewModel tests cover instead.
+ *
+ * That suite is `SearchContentTest` in `src/uiTest`, added by PR15 and running on Desktop and iOS.
+ * There is no Android leg — see docs/adr/0012.
  */
 @Composable
 public fun SearchContent(

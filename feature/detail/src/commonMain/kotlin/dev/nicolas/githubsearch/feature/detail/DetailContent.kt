@@ -68,10 +68,10 @@ import org.jetbrains.compose.resources.stringResource
  * what makes the drawing half reachable at all — driven by a plain state object and lambda spies —
  * while [DetailScreen] holds the wiring the ViewModel tests cover instead.
  *
- * That suite does not exist yet: neither convention plugin creates a device-test compilation, so
- * PR15 owns it. Until then nothing asserts what this file draws — that a failure renders a retry
- * which calls `onRetry`, that a null language renders its fallback rather than a blank row, that
- * the avatar appears only once the record lands, or that `onBack` is wired at all.
+ * That suite is `DetailContentTest` in `src/uiTest`, added by PR15 and running on Desktop and iOS.
+ * It covers what this file draws: the seven fields, the language fallback, the retry and back
+ * callbacks, the avatar appearing only once the record lands, and the header holding its position
+ * whether the record arrives or the request fails. There is no Android leg — see docs/adr/0012.
  *
  * The two callbacks would fit in a holder like the search screen's `SearchActions`, and
  * deliberately do not: that type exists because seven parameters tripped a real limit, and

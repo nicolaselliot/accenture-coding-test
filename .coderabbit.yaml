@@ -129,6 +129,20 @@ reviews:
         - Flag a deleted, weakened or commented-out assertion, and any expected value that looks
           pasted from actual output.
 
+    - path: "**/*.md"
+      instructions: |
+        - Japanese is expected in these documents and is never an error. The assignment being
+          delivered is written in Japanese and grades 30 rows in three tiers, so 高「…」/ 中「…」/
+          低「…」 is how a document cites one — 低「UIテスト」means "the low-tier row named UI test".
+          Terms like 可読性 are the row's own name. Do not ask for these to be translated,
+          rewritten in English, or called malformed: they are quotations, and the README is
+          Japanese by requirement because the reviewers are the assignment's authors.
+        - Fenced blocks holding command output, stack traces or build logs are left untagged, which
+          is the convention across every ADR in docs/adr. Do not report MD040 for them; the lint
+          gate here is ktlint, detekt and Android Lint, not markdownlint (see docs/adr/0003).
+        - Identifiers, test names and code comments stay English. That rule is about *code* — flag
+          a Japanese identifier, never a Japanese sentence in prose.
+
     - path: "**/*.gradle.kts"
       instructions: |
         - Every dependency version comes from gradle/libs.versions.toml. Flag a literal version in
