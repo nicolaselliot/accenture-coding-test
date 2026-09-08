@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Japanese. Resolved from the platform locale — there is no in-app language picker, because the
+  row does not ask for one and a runtime override is per-platform work on three targets.
+
+  Every key in values/strings.xml must appear here. A missing one does not fail the build; it
+  silently falls back to English, which is the worst outcome because it looks deliberate. The
+  `verifyTranslations` task in this module's build script is what turns that into a build failure.
+-->
+<resources>
+    <!-- Shared. -->
+    <string name="app_name">GitHub 検索</string>
+    <string name="action_retry">再試行</string>
+    <string name="owner_avatar">%1$s のアイコン</string>
+    <string name="language_unknown">言語は検出されていません</string>
+
+    <string name="error_network">接続できません。ネットワークを確認して再試行してください。</string>
+    <string name="error_rate_limited">GitHub のレート制限に達しました。しばらく待ってから再試行してください。</string>
+    <string name="error_not_found">リポジトリが見つかりませんでした。</string>
+    <string name="error_unauthorized">設定されているアクセストークンが拒否されました。</string>
+    <string name="error_unknown">問題が発生しました。再試行してください。</string>
+
+    <!-- Search. -->
+    <string name="search_field_label">リポジトリを検索</string>
+    <string name="search_action">検索</string>
+    <string name="search_idle">キーワードを入力して GitHub のリポジトリを検索します。</string>
+    <string name="search_empty">そのキーワードに一致するリポジトリはありませんでした。</string>
+    <string name="search_loading">検索中</string>
+    <string name="search_append_failed">これ以上の結果を読み込めませんでした。</string>
+    <!-- Star count first would read as a quantity without a label; Japanese puts the label first. -->
+    <string name="search_stars">スター %1$s</string>
+
+    <!-- Detail. -->
+    <string name="detail_no_selection">リポジトリを選択すると詳細が表示されます。</string>
+    <string name="detail_loading">リポジトリを読み込み中</string>
+    <string name="detail_back">戻る</string>
+    <string name="detail_language">言語</string>
+    <string name="detail_stars">スター</string>
+    <string name="detail_watchers">ウォッチャー</string>
+    <string name="detail_forks">フォーク</string>
+    <!--
+      Named for what GitHub actually counts, as in English: open_issues_count includes pull
+      requests. "Issue" is left in Latin script because that is how GitHub's own Japanese UI and
+      Japanese developers write it.
+    -->
+    <string name="detail_open_issues">オープンな Issue とプルリクエスト</string>
+</resources>

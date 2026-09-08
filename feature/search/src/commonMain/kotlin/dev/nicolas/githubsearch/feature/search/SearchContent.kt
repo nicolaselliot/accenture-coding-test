@@ -52,6 +52,7 @@ import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_fie
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_idle
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_loading
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_stars
+import dev.nicolas.githubsearch.core.designsystem.layout.formatCount
 import dev.nicolas.githubsearch.core.designsystem.theme.Spacing
 import dev.nicolas.githubsearch.domain.RepositoryCoordinates
 import dev.nicolas.githubsearch.domain.RepositorySummary
@@ -219,9 +220,9 @@ private fun RepositoryRow(
         },
         trailingContent = {
             Text(
-                // The raw count for now. Locale-aware number formatting has no stdlib API in KMP
-                // and arrives as the pinned formatCount expect/actual in PR12.
-                text = stringResource(Res.string.search_stars, summary.stars.toString()),
+                // Grouped for the platform's locale — KMP has no stdlib API for this, so
+                // formatCount is one expect/actual per target.
+                text = stringResource(Res.string.search_stars, formatCount(summary.stars)),
                 style = MaterialTheme.typography.labelMedium,
             )
         },
