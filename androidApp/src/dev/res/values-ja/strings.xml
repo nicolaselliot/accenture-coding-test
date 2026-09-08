@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The dev flavor's Japanese launcher label.
+
+      Needed as its own file, because resource resolution is per qualifier: the flavor's values/
+      overrides main's values/, but it does not override main's values-ja/ — a more specific match
+      that the platform prefers on a Japanese device. Without this file, the dev build would install
+      as「GitHub リポジトリ検索」there, indistinguishable from prod.
+
+      The marker is translated rather than transliterated:「（開発版）」is what a Japanese build
+      channel is called, and the reviewers are ゆめみ's.
+    -->
+    <string name="app_name">GitHub リポジトリ検索（開発版）</string>
+</resources>

@@ -98,6 +98,10 @@ coil-networkKtor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref
 
 # --- Test ----------------------------------------------------------------------------------------
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
+# For build-logic's own tests only. Every other module gets kotlin.test from the Kotlin plugin, which
+# supplies the version itself; an included build applying `kotlin-dsl` does not, so it is declared
+# here rather than left to resolve against Gradle's embedded Kotlin.
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 
 # --- Plugin artifacts, for build-logic's classpath ------------------------------------------------
 # Convention plugins apply these by id; build-logic needs them on its compile classpath to do so.
