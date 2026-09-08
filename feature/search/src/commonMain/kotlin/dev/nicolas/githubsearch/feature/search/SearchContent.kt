@@ -1,5 +1,9 @@
 package dev.nicolas.githubsearch.feature.search
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,10 +31,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -53,7 +61,9 @@ import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_idl
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_loading
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_stars
 import dev.nicolas.githubsearch.core.designsystem.layout.formatCount
+import dev.nicolas.githubsearch.core.designsystem.theme.AppMotion
 import dev.nicolas.githubsearch.core.designsystem.theme.Spacing
+import dev.nicolas.githubsearch.core.designsystem.theme.sharedContainer
 import dev.nicolas.githubsearch.domain.RepositoryCoordinates
 import dev.nicolas.githubsearch.domain.RepositorySummary
 import org.jetbrains.compose.resources.StringResource
@@ -73,6 +83,8 @@ public fun SearchContent(
     actions: SearchActions,
     modifier: Modifier = Modifier,
 ) {
+    val fade = AppMotion.rememberStateChange()
+
     Column(modifier = modifier.fillMaxSize()) {
         SearchField(
             query = state.query,
@@ -86,14 +98,26 @@ public fun SearchContent(
         // child that fills the whole column would push its last rows past the viewport. Boxing the
         // `when` applies that to all five phases rather than only to the one that scrolls.
         Box(modifier = Modifier.weight(1f)) {
-            // Exhaustive with no `else`: a phase added later has to be drawn deliberately rather
-            // than falling into whichever branch happened to be last.
-            when (val phase = state.phase) {
-                SearchPhase.Idle -> CentredMessage(Res.string.search_idle)
-                SearchPhase.Loading -> LoadingIndicator()
-                SearchPhase.Empty -> CentredMessage(Res.string.search_empty)
-                is SearchPhase.Failed -> FailureMessage(error = phase.error, onRetry = actions.onRetry)
-                is SearchPhase.Content -> ResultList(phase = phase, actions = actions)
+            AnimatedContent(
+                targetState = state.phase,
+                // Keyed on which state this is, not on the state's value — see transitionKey.
+                contentKey = { it.transitionKey },
+                // `using null` turns off the size transform. Every phase below fills the box, so
+                // there is no size to animate, and the default would clip the outgoing content
+                // against a container it is already the same size as.
+                transitionSpec = { fadeIn(fade) togetherWith fadeOut(fade) using null },
+                modifier = Modifier.fillMaxSize(),
+                label = "search phase",
+            ) { phase ->
+                // Exhaustive with no `else`: a phase added later has to be drawn deliberately
+                // rather than falling into whichever branch happened to be last.
+                when (phase) {
+                    SearchPhase.Idle -> CentredMessage(Res.string.search_idle)
+                    SearchPhase.Loading -> ResultSkeleton()
+                    SearchPhase.Empty -> CentredMessage(Res.string.search_empty)
+                    is SearchPhase.Failed -> FailureMessage(error = phase.error, onRetry = actions.onRetry)
+                    is SearchPhase.Content -> ResultList(phase = phase, actions = actions)
+                }
             }
         }
     }
@@ -149,7 +173,23 @@ private fun ResultList(
     phase: SearchPhase.Content,
     actions: SearchActions,
 ) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
+    // Both accessors remember internally, which matters here: they are read once per row per
+    // recomposition while the list is being scrolled.
+    val fade = AppMotion.rememberStateChange()
+    val placement = AppMotion.rememberPlacement()
+
+    // The scroll position belongs to the search, not to whichever composition happens to draw it.
+    // `AnimatedContent` already discards this state when the phase's key changes, because it wraps
+    // each visible state in a `key(contentKey(it))` — so today this line changes nothing.
+    //
+    // It is here because that redundancy leans on someone else's implementation detail.
+    // `transitionKey` answers "should this cross-fade?", and this file already tunes that answer
+    // for unrelated reasons — two Failed phases deliberately share a key to hold the retry button
+    // still. Saying the lifetime where the state lives means the next such tuning cannot quietly
+    // hand a new search the previous one's offset.
+    val listState = key(phase.requestId) { rememberLazyListState() }
+
+    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
         // A stable key per row, so an appended page does not recompose the rows already drawn and
         // scroll position survives the insertion. contentType as well, because the footer below is
         // a different shape — without it Lazy layout tries to reuse a row's slot for the footer.
@@ -158,8 +198,20 @@ private fun ResultList(
             key = { it.id.value },
             contentType = { ROW_CONTENT_TYPE },
         ) { summary ->
-            RepositoryRow(summary = summary, onClick = { actions.onRepositoryClick(summary.coordinates) })
-            HorizontalDivider()
+            // The divider travels with its row. animateItem applies to the whole item, so the two
+            // are wrapped rather than emitted as siblings — otherwise an appended row slides into
+            // place while the line under it jumps.
+            Column(
+                modifier =
+                    Modifier.animateItem(
+                        fadeInSpec = fade,
+                        placementSpec = placement,
+                        fadeOutSpec = fade,
+                    ),
+            ) {
+                RepositoryRow(summary = summary, onClick = { actions.onRepositoryClick(summary.coordinates) })
+                HorizontalDivider()
+            }
         }
 
         if (phase.appendError != null) {
@@ -190,6 +242,8 @@ private fun RepositoryRow(
     summary: RepositorySummary,
     onClick: () -> Unit,
 ) {
+    val haptics = LocalHapticFeedback.current
+
     // Material 3's own list row rather than a hand-built Row: it supplies the slot typography,
     // the content colours and the two-line minimum height, all of which clear the 48dp touch
     // target without this file restating any of them.
@@ -226,7 +280,22 @@ private fun RepositoryRow(
                 style = MaterialTheme.typography.labelMedium,
             )
         },
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier =
+            Modifier
+                // The row is the source of the container transform into the detail screen. Keyed
+                // on the full name because that is all the detail route carries, so it is the only
+                // identity both ends can agree on — the row's numeric id never reaches the
+                // destination.
+                .sharedContainer(summary.coordinates.fullName)
+                .clickable {
+                    // `Confirm` is the platform's own name for a selection or insertion — one
+                    // light tick, not the triple pulse of a success notification. It is
+                    // deliberately not gated on the reduce-motion preference: that setting is
+                    // about movement on screen, and someone who has turned animations off has not
+                    // asked to stop feeling their own taps.
+                    haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                    onClick()
+                },
     )
 }
 
@@ -306,6 +375,39 @@ private fun messageFor(error: AppError): StringResource =
         is AppError.Serialization -> Res.string.error_unknown
         is AppError.Unknown -> Res.string.error_unknown
     }
+
+/**
+ * What makes one phase a different thing to cross-fade to.
+ *
+ * The identity of the *state*, not of the value. Results are a new value on every appended page,
+ * and `AnimatedContent` keyed on the value would fade the whole list out and back in each time —
+ * so appending keeps its key and simply redraws the list in place.
+ *
+ * The key has to cut the other way too, because the reuse does. `AnimatedContent` reuses the
+ * composition group behind a repeated key, and that group holds the `LazyColumn`'s
+ * `rememberLazyListState`. One key for all results would hand a *new* search the previous one's
+ * scroll offset — not in theory, but whenever GitHub answers inside the 300 ms the outgoing fade is
+ * still running, which leaves the new list opening halfway down.
+ *
+ * So results are keyed by their [SearchRequestId], which the ViewModel bumps once per first-page
+ * request and leaves alone while pages append — exactly the grouping this key needs. See that type
+ * for why no key derived from the rows themselves can work.
+ *
+ * Two failures share a key: a retry that fails differently swaps the sentence and leaves the retry
+ * button where the user's finger already is.
+ *
+ * Exhaustive with no `else`, so a phase added later has to be given a key deliberately rather than
+ * inheriting whichever branch happened to be last and silently never animating.
+ */
+internal val SearchPhase.transitionKey: String
+    get() =
+        when (this) {
+            SearchPhase.Idle -> "idle"
+            SearchPhase.Loading -> "loading"
+            SearchPhase.Empty -> "empty"
+            is SearchPhase.Failed -> "failed"
+            is SearchPhase.Content -> "content:${requestId.value}"
+        }
 
 private const val APPEND_KEY = "append"
 private const val APPEND_FAILED_KEY = "append-failed"

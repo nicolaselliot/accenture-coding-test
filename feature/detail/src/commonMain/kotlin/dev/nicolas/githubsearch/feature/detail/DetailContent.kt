@@ -1,12 +1,18 @@
 package dev.nicolas.githubsearch.feature.detail
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -15,7 +21,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,7 +51,11 @@ import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_unkn
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.language_unknown
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.owner_avatar
 import dev.nicolas.githubsearch.core.designsystem.layout.formatCount
+import dev.nicolas.githubsearch.core.designsystem.theme.AppMotion
+import dev.nicolas.githubsearch.core.designsystem.theme.ShimmerGroup
 import dev.nicolas.githubsearch.core.designsystem.theme.Spacing
+import dev.nicolas.githubsearch.core.designsystem.theme.sharedContainer
+import dev.nicolas.githubsearch.core.designsystem.theme.shimmer
 import dev.nicolas.githubsearch.domain.RepositoryDetail
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -75,30 +84,43 @@ public fun DetailContent(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
-        // The record's own coordinates win once it arrives, falling back to the route's until
-        // then. GitHub redirects a renamed repository and answers with its *current* full name, so
-        // a header pinned to the route would keep showing the old one — which is the same reason
-        // :data:github takes the coordinates from the response rather than the request.
-        val loaded = (state.phase as? DetailPhase.Content)?.detail
+    val fade = AppMotion.rememberStateChange()
 
+    Column(modifier = modifier.fillMaxSize()) {
         DetailHeader(
-            title = loaded?.coordinates?.fullName ?: state.coordinates.fullName,
-            avatarUrl = loaded?.ownerAvatarUrl,
-            owner = loaded?.coordinates?.owner ?: state.coordinates.owner,
+            state = state,
             onBack = onBack,
+            // The destination of the container transform from the tapped row. Keyed on the
+            // *route's* coordinates, never on the loaded record's: GitHub answers a renamed
+            // repository with its current name, and keying on that would leave the row's key
+            // unmatched and the transform would fall back to a plain fade.
+            modifier = Modifier.sharedContainer(state.coordinates.fullName),
         )
 
         HorizontalDivider()
 
         // weight, so the body takes the height the header leaves rather than the whole column.
         Box(modifier = Modifier.weight(1f)) {
-            // Exhaustive with no `else`: a phase added later has to be drawn deliberately rather
-            // than falling into whichever branch happened to be last.
-            when (val phase = state.phase) {
-                DetailPhase.Loading -> LoadingIndicator()
-                is DetailPhase.Content -> Stats(phase.detail)
-                is DetailPhase.Failed -> FailureMessage(error = phase.error, onRetry = onRetry)
+            AnimatedContent(
+                targetState = state.phase,
+                // No contentKey override, unlike the search screen: this screen makes one request
+                // and every phase value it can reach is a different thing to look at, so the
+                // default — the value itself — is already right.
+                //
+                // `using null` turns off the size transform. Both phases fill the box, so there is
+                // no size to animate and the default would clip the outgoing content against a
+                // container it already matches.
+                transitionSpec = { fadeIn(fade) togetherWith fadeOut(fade) using null },
+                modifier = Modifier.fillMaxSize(),
+                label = "detail phase",
+            ) { phase ->
+                // Exhaustive with no `else`: a phase added later has to be drawn deliberately
+                // rather than falling into whichever branch happened to be last.
+                when (phase) {
+                    DetailPhase.Loading -> StatsSkeleton()
+                    is DetailPhase.Content -> Stats(phase.detail)
+                    is DetailPhase.Failed -> FailureMessage(error = phase.error, onRetry = onRetry)
+                }
             }
         }
     }
@@ -107,20 +129,27 @@ public fun DetailContent(
 /**
  * The repository's identity, drawable before the request resolves.
  *
- * [title] and [owner] are already resolved by the caller: the record's own `full_name` once it has
- * arrived, the navigation key's until then. [avatarUrl] has no such fallback and is null while
- * loading, because only the response knows it. That asymmetry is why the header takes three plain
- * arguments rather than the phase.
+ * Takes the whole state rather than the four things it needs from it, because every one of them is
+ * the same decision made twice — whether the record has arrived — and splitting that decision
+ * across the caller and the callee is how the avatar and the title end up disagreeing about which
+ * repository is on screen.
  */
 @Composable
 private fun DetailHeader(
-    title: String,
-    avatarUrl: String?,
-    owner: String,
+    state: DetailUiState,
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    // The record's own coordinates win once it arrives, falling back to the route's until then.
+    // GitHub redirects a renamed repository and answers with its *current* full name, so a header
+    // pinned to the route would keep showing the old one — which is the same reason :data:github
+    // takes the coordinates from the response rather than the request.
+    val loaded = (state.phase as? DetailPhase.Content)?.detail
+    val avatarUrl = loaded?.ownerAvatarUrl
+    val owner = loaded?.coordinates?.owner ?: state.coordinates.owner
+
     Row(
-        modifier = Modifier.fillMaxWidth().padding(Spacing.medium),
+        modifier = modifier.fillMaxWidth().padding(Spacing.medium),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TextButton(
@@ -134,19 +163,37 @@ private fun DetailHeader(
 
         Spacer(Modifier.width(Spacing.small))
 
-        if (avatarUrl != null) {
-            AsyncImage(
-                model = avatarUrl,
-                // Named, not decorative: the owner is information the header conveys, and a screen
-                // reader announcing "image" would drop it.
-                contentDescription = stringResource(Res.string.owner_avatar, owner),
-                modifier = Modifier.size(Spacing.avatarSize).clip(CircleShape),
-            )
-            Spacer(Modifier.width(Spacing.medium))
+        // The avatar's footprint is held open whether the record is still coming or never will.
+        // Reserving it only while loading swaps the problem for its mirror image: the header would
+        // stop jumping when the response lands and start jumping when it fails, shifting the title
+        // 56dp left under a user who is reading it. Only the *lit* placeholder is loading-only —
+        // a shimmer that never resolves says the screen is still working when it has given up.
+        when {
+            avatarUrl != null -> {
+                AsyncImage(
+                    model = avatarUrl,
+                    // Named, not decorative: the owner is information the header conveys, and a
+                    // screen reader announcing "image" would drop it.
+                    contentDescription = stringResource(Res.string.owner_avatar, owner),
+                    modifier = Modifier.size(Spacing.avatarSize).clip(CircleShape),
+                )
+            }
+
+            state.phase is DetailPhase.Loading -> {
+                // No content description: there is nothing here to describe yet, and the body
+                // below already announces that the screen is loading.
+                Box(Modifier.size(Spacing.avatarSize).shimmer(CircleShape))
+            }
+
+            else -> {
+                Spacer(Modifier.size(Spacing.avatarSize))
+            }
         }
 
+        Spacer(Modifier.width(Spacing.medium))
+
         Text(
-            text = title,
+            text = loaded?.coordinates?.fullName ?: state.coordinates.fullName,
             style = MaterialTheme.typography.titleMedium,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -187,15 +234,67 @@ private fun Stats(detail: RepositoryDetail) {
     }
 }
 
+/**
+ * The shape of [Stats], drawn before the record arrives.
+ *
+ * Same row count and same heights, so the real values replace the placeholders without the column
+ * resizing under them. One description on the container with nothing announceable inside, so a
+ * screen reader says "Loading repository" once rather than reading out ten bars.
+ */
+@Composable
+private fun StatsSkeleton() {
+    // Read outside the semantics lambda: that lambda is not a composable scope, so the string has
+    // to be resolved before it.
+    val description = stringResource(Res.string.detail_loading)
+
+    // One sweep for all ten placeholders below, rather than ten infinite transitions computing
+    // the same number every frame.
+    ShimmerGroup {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = Spacing.medium, vertical = Spacing.small)
+                    .semantics(mergeDescendants = true) { contentDescription = description },
+        ) {
+            repeat(STAT_ROWS) {
+                StatRowLayout {
+                    // Weights, not `fillMaxWidth` fractions. A Row measures its unweighted
+                    // children against what is left rather than against the row, so a second
+                    // 0.15 bar beside a 0.35 one comes out at 0.15 of the remaining 0.65 — about
+                    // a tenth of the row, and nothing in the source says so. Weights are shares
+                    // of the whole, so these constants mean what they read as.
+                    Box(Modifier.weight(LABEL_BAR_WIDTH).height(Spacing.medium).shimmer())
+                    Spacer(Modifier.weight(1f - LABEL_BAR_WIDTH - VALUE_BAR_WIDTH))
+                    Box(Modifier.weight(VALUE_BAR_WIDTH).height(Spacing.medium).shimmer())
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The shell every stat row shares, real or placeholder.
+ *
+ * Extracted because the touch-target floor is the kind of thing that gets restated slightly
+ * differently in the second copy, and a placeholder row shorter than the row it stands in for is
+ * exactly the layout jump the skeleton exists to prevent.
+ */
+@Composable
+private fun StatRowLayout(content: @Composable RowScope.() -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.minimumTouchTarget),
+        verticalAlignment = Alignment.CenterVertically,
+        content = content,
+    )
+}
+
 @Composable
 private fun StatRow(
     label: StringResource,
     value: String,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.minimumTouchTarget),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    StatRowLayout {
         Text(
             text = stringResource(label),
             style = MaterialTheme.typography.bodyMedium,
@@ -229,20 +328,6 @@ private fun FailureMessage(
     }
 }
 
-@Composable
-private fun LoadingIndicator() {
-    // Read outside the semantics lambda: that lambda is not a composable scope, so the string has
-    // to be resolved before it.
-    val description = stringResource(Res.string.detail_loading)
-
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(
-            // A progress indicator with no description is announced as nothing at all.
-            modifier = Modifier.semantics { contentDescription = description },
-        )
-    }
-}
-
 /**
  * The message for one error.
  *
@@ -270,3 +355,10 @@ private fun messageFor(error: AppError): StringResource =
         is AppError.Serialization -> Res.string.error_unknown
         is AppError.Unknown -> Res.string.error_unknown
     }
+
+/** As many placeholder rows as [Stats] draws real ones, so nothing moves when they are replaced. */
+private const val STAT_ROWS = 5
+
+/** A label runs longer than the number beside it, and the placeholder should say so. */
+private const val LABEL_BAR_WIDTH = 0.35f
+private const val VALUE_BAR_WIDTH = 0.15f

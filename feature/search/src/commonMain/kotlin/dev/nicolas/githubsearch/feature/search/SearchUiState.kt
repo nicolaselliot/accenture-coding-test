@@ -5,6 +5,23 @@ import dev.nicolas.githubsearch.core.common.AppError
 import dev.nicolas.githubsearch.domain.RepositorySummary
 import dev.nicolas.githubsearch.domain.isSearchable
 import kotlinx.collections.immutable.ImmutableList
+import kotlin.jvm.JvmInline
+
+/**
+ * Which submitted search a set of results belongs to.
+ *
+ * A counter rather than the query, because the same keyword submitted twice is still two searches:
+ * the user asked again and expects to be answered from the top. It exists because results have no
+ * natural identity of their own — two searches can legitimately return the same repositories in the
+ * same order, and anything derived from the rows would call those one thing.
+ *
+ * A value class rather than a bare `Int` so it cannot be passed where a page number or a result
+ * count is expected, for the same reason [dev.nicolas.githubsearch.domain.RepositoryId] is one.
+ */
+@JvmInline
+public value class SearchRequestId(
+    public val value: Int,
+)
 
 /**
  * Everything the search screen draws.
@@ -67,10 +84,15 @@ public sealed interface SearchPhase {
      * [appendError] is separate from [Failed] on purpose. A page that fails while the user is
      * scrolling must not replace results they are already reading with an error screen; it shows
      * inline and leaves the list alone.
+     *
+     * [requestId] has no default, unlike the three flags above: it is this content's identity
+     * rather than an optional aspect of it, and a shared default is precisely the collision it
+     * exists to prevent.
      */
     @Immutable
     public data class Content(
         val repositories: ImmutableList<RepositorySummary>,
+        val requestId: SearchRequestId,
         val isAppending: Boolean = false,
         val appendError: AppError? = null,
         val hasMore: Boolean = true,
