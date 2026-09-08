@@ -10,12 +10,15 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.scene.SinglePaneSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.Res
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.app_name
+import dev.nicolas.githubsearch.core.designsystem.layout.isWidthExpanded
+import dev.nicolas.githubsearch.core.designsystem.layout.rememberWindowSizeClass
 import dev.nicolas.githubsearch.core.designsystem.theme.AppTheme
 import dev.nicolas.githubsearch.core.designsystem.theme.ThemeMode
 import dev.nicolas.githubsearch.domain.RepositoryCoordinates
@@ -24,7 +27,10 @@ import dev.nicolas.githubsearch.feature.search.SearchScreen
 import dev.nicolas.githubsearch.shared.di.ImageClient
 import dev.nicolas.githubsearch.shared.navigation.DetailKey
 import dev.nicolas.githubsearch.shared.navigation.SearchKey
+import dev.nicolas.githubsearch.shared.navigation.TwoPaneSceneStrategy
 import dev.nicolas.githubsearch.shared.navigation.appSavedStateConfiguration
+import dev.nicolas.githubsearch.shared.navigation.selectDetail
+import dev.nicolas.githubsearch.shared.navigation.twoPaneKeys
 import io.ktor.client.HttpClient
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -52,6 +58,17 @@ public fun GithubSearchApp(themeMode: ThemeMode = ThemeMode.System) {
     AppTheme(themeMode = themeMode) {
         val backStack = rememberNavBackStack(appSavedStateConfiguration, SearchKey)
 
+        // Recomputed as the window changes, so a rotation or a resize drag is the same event.
+        val isTwoPane = rememberWindowSizeClass().isWidthExpanded
+
+        // Resolved here rather than inside the strategy because NavEntry.key is private: only the
+        // holder of the back stack can see which route each entry came from. Keeping the decision
+        // here also keeps it a pure function over keys, which is what makes it testable.
+        val panes = if (isTwoPane) twoPaneKeys(backStack) else null
+
+        val strategies =
+            remember(panes) { listOf(TwoPaneSceneStrategy(panes), SinglePaneSceneStrategy()) }
+
         // The Surface fills the window and the insets are consumed *inside* it. Padding the
         // Surface itself would shrink the painted area, leaving the status- and navigation-bar
         // bands showing the manifest's windowBackground for the app's whole life rather than only
@@ -62,6 +79,16 @@ public fun GithubSearchApp(themeMode: ThemeMode = ThemeMode.System) {
             NavDisplay(
                 modifier = Modifier.safeDrawingPadding(),
                 backStack = backStack,
+                // Two panes when the window is wide enough, falling through to the single-pane
+                // default otherwise. A Scene rather than a Row in place of NavDisplay, so the
+                // entry decorators below apply in both layouts — see TwoPaneScene.
+                //
+                // Remembered, and not for tidiness: navigation3 1.1.1 keys its scene state on
+                // `remember(sceneStrategies.toList(), decoratedEntries)`, and neither strategy
+                // class overrides equals. A list rebuilt inline would therefore change that key on
+                // every recomposition — every keystroke in the search field — and throw away the
+                // calculated scenes each time.
+                sceneStrategies = strategies,
                 // Both decorators are load-bearing. Navigation 3 does not scope ViewModels to
                 // entries by default — they stay tied to the host — so without the ViewModel
                 // decorator two detail destinations would share one store and the second would be
@@ -78,15 +105,12 @@ public fun GithubSearchApp(themeMode: ThemeMode = ThemeMode.System) {
                         entry<SearchKey> {
                             SearchScreen(
                                 onRepositoryClick = { coordinates ->
-                                    val key =
-                                        DetailKey(owner = coordinates.owner, name = coordinates.name)
-
-                                    // Guarded, because two equal keys are one content key to
-                                    // Navigation 3 — and both entry decorators index by it. A
-                                    // double-tap would give the two entries a shared ViewModelStore
-                                    // and one saveable-state slot, so popping the first would clear
-                                    // the live ViewModel out from under the screen still showing.
-                                    if (backStack.lastOrNull() != key) backStack.add(key)
+                                    // Selection in two panes, navigation in one — and in both
+                                    // cases a no-op for the row already showing. See selectDetail.
+                                    backStack.selectDetail(
+                                        key = DetailKey(owner = coordinates.owner, name = coordinates.name),
+                                        isTwoPane = isTwoPane,
+                                    )
                                 },
                             )
                         }

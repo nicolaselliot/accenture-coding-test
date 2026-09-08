@@ -37,6 +37,8 @@
     <string name="search_stars">%1$s stars</string>
 
     <!-- Detail. -->
+    <!-- The empty detail pane, shown only in the two-pane layout before anything is tapped. -->
+    <string name="detail_no_selection">Select a repository to see its details.</string>
     <string name="detail_loading">Loading repository</string>
     <!-- Just "Back": a deep link or a restored back stack can reach this screen with no
          results behind it, so naming the destination would sometimes be wrong. -->
