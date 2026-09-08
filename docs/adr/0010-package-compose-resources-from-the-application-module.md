@@ -65,15 +65,22 @@ pairing simply has no route from a shared module's resources to an Android APK.
 The re-layout sits with the producer because the package segment comes from that module's
 `packageOfResClass`, and the application has no business knowing it.
 
-**A green build must never again mean a crashing app**, so `:androidApp:verifyDebugComposeResources`
-asserts that the merged assets contain at least one `.cvr` bundle, and `check` depends on it. It was
-written before the fix and observed to fail for the right reason.
+**A green build must never again mean a crashing app**, so
+`:androidApp:verify<Variant>ComposeResources` asserts that the merged assets contain at least one
+`.cvr` bundle, and `check` depends on it for every variant. Each was written before the fix and
+observed to fail for the right reason.
 
 ## Consequences
 
 - Android renders its strings. Verified on an emulator: the app launches, the search screen draws
   from the bundle, and the error state renders its localised message with a working retry.
-- Both variants are covered — the release APK carries the bundle through R8 and `shrinkResources`.
+- Both variants are gated, the one that ships included. `SingleArtifact.ASSETS` is produced by
+  `merge<Variant>Assets`, upstream of R8, so the release gate costs an asset merge rather than the
+  minified APK it looks like it would — which is why there is no case for leaving it ungated.
+  Verified separately: the release APK carries both bundles through R8 and `shrinkResources`.
+- The assertion is on merged assets, not on the APK, so a packaging-level exclusion would slip past
+  it. This build declares none; closing that last gap would cost `BuiltArtifactsLoader` and a
+  minified APK on every `check`.
 - The wiring is explicit and greppable, and the guard fails loudly if it is ever severed.
 - **The cost is a hand-maintained edge.** `:androidApp` now knows that `:core:designsystem`
   publishes assets. A second module that gained resources would have to be added, which the

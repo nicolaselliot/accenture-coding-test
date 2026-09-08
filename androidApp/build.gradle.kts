@@ -36,7 +36,13 @@ dependencies {
 // they do not. The Gradle task that copies them is registered whether or not it has anywhere to
 // write, so a broken wiring produces a green build, a complete APK and a crash on the first
 // `stringResource` — which is exactly what shipped before this check existed. Every other gate in
-// the project passes in that state, so the assertion has to be on the packaged output itself.
+// the project passes in that state, so the assertion has to be on the assets themselves.
+//
+// Merged assets, specifically: the stage where every module's contribution has landed, and the last
+// one before packaging. That is where the failure showed up — zero `composeResources/` entries — and
+// it is reached by an asset merge alone, with no R8 and no APK. What it does not cover, then, is a
+// packaging-level exclusion; this build declares none, and buying that coverage would mean
+// `BuiltArtifactsLoader` and a minified APK on every `check`.
 androidComponents {
     onVariants { variant ->
         val packageComposeResources =
@@ -103,10 +109,9 @@ androidComponents {
                 }
             }
 
-        // Debug only: the check is about wiring, which both variants share, and making `check`
-        // build a minified release APK would cost minutes on every run.
-        if (variantName == "debug") {
-            tasks.named("check") { dependsOn(verify) }
-        }
+        // Every variant, the one that ships included. `SingleArtifact.ASSETS` is produced by
+        // `merge<Variant>Assets`, which sits upstream of R8, so gating release costs an asset merge
+        // rather than the minified APK it looks like it would.
+        tasks.named("check") { dependsOn(verify) }
     }
 }
