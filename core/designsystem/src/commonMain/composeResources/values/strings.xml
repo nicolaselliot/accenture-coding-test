@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Every user-facing string in the application. One bundle in one module, so `Res` is generated
-  once and a translation has a single surface. English is the base locale; `values-ja` arrives in
-  PR12 alongside the locale-aware number formatting.
+  once and a translation has a single surface. English is the base locale; `values-ja` is its
+  translation, and `verifyTranslations` fails the build if the two ever stop matching.
 
   Names are prefixed by what owns them: no prefix for anything more than one screen renders,
   `search_` and `detail_` for the rest. The unprefixed group exists because both screens map the
