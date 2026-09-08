@@ -29,6 +29,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -249,6 +250,52 @@ class SearchViewModelTest {
             val content = viewModel.state.value.phase as SearchPhase.Content
             assertEquals(SEARCH_PAGE_SIZE + 1, content.repositories.size)
             assertEquals(listOf("kotlin" to 1, "kotlin" to 2), port.searches)
+        }
+
+    @Test
+    fun `a second search takes a new identity even when it returns the same repositories`() =
+        runTest {
+            // One answer for every query, which is the pair an identity derived from the rows
+            // cannot separate — and the one that hands a new search the old scroll offset.
+            val port = FakeGithubRepository(searchResult = Outcome.Success(listOf(KOTLIN_SUMMARY)))
+            val viewModel = viewModel(port)
+
+            viewModel.onQueryChange("kotlin")
+            viewModel.onSubmit()
+            advanceUntilIdle()
+            val first = (viewModel.state.value.phase as SearchPhase.Content).requestId
+
+            viewModel.onQueryChange("kotlin multiplatform")
+            viewModel.onSubmit()
+            advanceUntilIdle()
+
+            val second = (viewModel.state.value.phase as SearchPhase.Content).requestId
+            assertNotEquals(first, second)
+        }
+
+    @Test
+    fun `appending a page keeps the identity of the search it belongs to`() =
+        runTest {
+            val port =
+                FakeGithubRepository(
+                    searchResult = Outcome.Success(emptyList()),
+                    searchResultsByPage = allPages(),
+                )
+            val viewModel = viewModel(port)
+
+            viewModel.onQueryChange("kotlin")
+            viewModel.onSubmit()
+            advanceUntilIdle()
+            val firstPage = (viewModel.state.value.phase as SearchPhase.Content).requestId
+
+            viewModel.onLoadMore()
+            advanceUntilIdle()
+
+            val appended = viewModel.state.value.phase as SearchPhase.Content
+            // Asserted first, so the identity check below cannot pass by nothing having appended.
+            assertEquals(SEARCH_PAGE_SIZE * 2, appended.repositories.size)
+            // A page appended under a new identity would cross-fade the list the user is reading.
+            assertEquals(firstPage, appended.requestId)
         }
 
     @Test

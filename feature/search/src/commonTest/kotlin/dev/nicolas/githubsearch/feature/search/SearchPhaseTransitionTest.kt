@@ -19,24 +19,29 @@ import kotlin.test.assertNotEquals
  * repeated key, `rememberLazyListState` included, and one key for all results would hand a fresh
  * search the previous one's scroll offset — visibly, whenever GitHub answers inside the 300ms fade
  * the outgoing results are still running.
+ *
+ * Both directions are pinned against the *request*. The separating test is written from the pair
+ * that defeats any key derived from the rows — two searches leading with the same repository —
+ * because a pair that merely differs would pass just as well against the wrong rule.
  */
 class SearchPhaseTransitionTest {
     @Test
     fun `appending a page is not a change worth cross-fading`() {
-        val firstPage = SearchPhase.Content(persistentListOf(KOTLIN_SUMMARY))
-        val appending = SearchPhase.Content(persistentListOf(KOTLIN_SUMMARY), isAppending = true)
-        val appended = SearchPhase.Content(persistentListOf(KOTLIN_SUMMARY, OTHER_SUMMARY))
+        val request = SearchRequestId(1)
+        val firstPage = SearchPhase.Content(persistentListOf(KOTLIN_SUMMARY), request)
+        val appending = SearchPhase.Content(persistentListOf(KOTLIN_SUMMARY), request, isAppending = true)
+        val appended = SearchPhase.Content(persistentListOf(KOTLIN_SUMMARY, OTHER_SUMMARY), request)
 
         assertEquals(firstPage.transitionKey, appending.transitionKey)
         assertEquals(firstPage.transitionKey, appended.transitionKey)
     }
 
     @Test
-    fun `a different search's results are a different thing to cross-fade to`() {
-        val kotlin = SearchPhase.Content(persistentListOf(KOTLIN_SUMMARY))
-        val other = SearchPhase.Content(persistentListOf(OTHER_SUMMARY))
+    fun `a different search is a different thing to cross-fade to even when led by the same row`() {
+        val first = SearchPhase.Content(persistentListOf(KOTLIN_SUMMARY), SearchRequestId(1))
+        val second = SearchPhase.Content(persistentListOf(KOTLIN_SUMMARY, OTHER_SUMMARY), SearchRequestId(2))
 
-        assertNotEquals(kotlin.transitionKey, other.transitionKey)
+        assertNotEquals(first.transitionKey, second.transitionKey)
     }
 
     @Test
@@ -47,7 +52,7 @@ class SearchPhaseTransitionTest {
                 SearchPhase.Loading,
                 SearchPhase.Empty,
                 SearchPhase.Failed(AppError.Network),
-                SearchPhase.Content(persistentListOf()),
+                SearchPhase.Content(persistentListOf(), SearchRequestId(1)),
             )
 
         val keys = phases.map { it.transitionKey }

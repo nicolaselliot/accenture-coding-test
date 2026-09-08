@@ -97,6 +97,18 @@ public class SearchViewModel(
     /** The page most recently loaded, so load-more knows what to ask for next. */
     private var loadedPage: Int = 0
 
+    /**
+     * Which submitted search the results on screen belong to — see [SearchRequestId].
+     *
+     * Minted here because this class is the only thing that knows a request was sent; nothing
+     * downstream can recover it from the results. Bumped once per first-page load and left alone
+     * while pages append.
+     *
+     * Not saved: after process death there is no previous composition left to be confused with, and
+     * `init` re-issues the search anyway.
+     */
+    private var requestId: SearchRequestId = SearchRequestId(0)
+
     init {
         // A restored query means the process was killed while the user had results on screen.
         // Re-issuing the search is what actually restores that screen — keeping the text but not
@@ -195,6 +207,9 @@ public class SearchViewModel(
 
         if (page == FIRST_SEARCH_PAGE) {
             pagingQuery = query
+            // Bumped here, alongside the query it belongs to, so every path that sends a first page
+            // gets a fresh identity — submit, retry and the process-death restore alike.
+            requestId = SearchRequestId(requestId.value + 1)
             // Recorded here rather than in onSubmit so that every path which actually sends a
             // request — submit, retry, process-death restore — leaves the debounce keyed to the
             // query that was really sent.
@@ -245,7 +260,11 @@ public class SearchViewModel(
                     if (combined.isEmpty()) {
                         SearchPhase.Empty
                     } else {
-                        SearchPhase.Content(repositories = combined, hasMore = hasMore)
+                        SearchPhase.Content(
+                            repositories = combined,
+                            requestId = requestId,
+                            hasMore = hasMore,
+                        )
                     },
             )
         }

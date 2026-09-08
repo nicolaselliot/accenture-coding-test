@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -30,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -176,7 +178,18 @@ private fun ResultList(
     val fade = AppMotion.rememberStateChange()
     val placement = AppMotion.rememberPlacement()
 
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
+    // The scroll position belongs to the search, not to whichever composition happens to draw it.
+    // `AnimatedContent` already discards this state when the phase's key changes, because it wraps
+    // each visible state in a `key(contentKey(it))` — so today this line changes nothing.
+    //
+    // It is here because that redundancy leans on someone else's implementation detail.
+    // `transitionKey` answers "should this cross-fade?", and this file already tunes that answer
+    // for unrelated reasons — two Failed phases deliberately share a key to hold the retry button
+    // still. Saying the lifetime where the state lives means the next such tuning cannot quietly
+    // hand a new search the previous one's offset.
+    val listState = key(phase.requestId) { rememberLazyListState() }
+
+    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
         // A stable key per row, so an appended page does not recompose the rows already drawn and
         // scroll position survives the insertion. contentType as well, because the footer below is
         // a different shape — without it Lazy layout tries to reuse a row's slot for the footer.
@@ -370,13 +383,15 @@ private fun messageFor(error: AppError): StringResource =
  * and `AnimatedContent` keyed on the value would fade the whole list out and back in each time —
  * so appending keeps its key and simply redraws the list in place.
  *
- * Results are keyed by their first row rather than by the bare word, because the reuse cuts both
- * ways: `AnimatedContent` reuses the composition group behind a repeated key, and that group holds
- * the `LazyColumn`'s `rememberLazyListState`. One key for all results would hand a *new* search the
- * previous one's scroll offset — not in theory, but whenever GitHub answers inside the 300 ms the
- * outgoing fade is still running, which leaves the new list opening halfway down. The first row is
- * what the two searches disagree about; appending never changes it, because pages arrive at the
- * end.
+ * The key has to cut the other way too, because the reuse does. `AnimatedContent` reuses the
+ * composition group behind a repeated key, and that group holds the `LazyColumn`'s
+ * `rememberLazyListState`. One key for all results would hand a *new* search the previous one's
+ * scroll offset — not in theory, but whenever GitHub answers inside the 300 ms the outgoing fade is
+ * still running, which leaves the new list opening halfway down.
+ *
+ * So results are keyed by their [SearchRequestId], which the ViewModel bumps once per first-page
+ * request and leaves alone while pages append — exactly the grouping this key needs. See that type
+ * for why no key derived from the rows themselves can work.
  *
  * Two failures share a key: a retry that fails differently swaps the sentence and leaves the retry
  * button where the user's finger already is.
@@ -391,7 +406,7 @@ internal val SearchPhase.transitionKey: String
             SearchPhase.Loading -> "loading"
             SearchPhase.Empty -> "empty"
             is SearchPhase.Failed -> "failed"
-            is SearchPhase.Content -> "content:${repositories.firstOrNull()?.id?.value}"
+            is SearchPhase.Content -> "content:${requestId.value}"
         }
 
 private const val APPEND_KEY = "append"
