@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The dev flavor's launcher label, overriding the one in src/main. Two builds that install side
+      by side have to be distinguishable in the launcher, and this is what makes the difference
+      visible without a runtime check: the resource is selected by variant, so the prod APK does
+      not carry it at all.
+
+      Its Japanese counterpart is in ../values-ja/strings.xml, and it is a separate file rather than
+      an omission: the flavor's values/ does not override main's values-ja/, so a Japanese device
+      would otherwise show the prod label on a dev build.
+    -->
+    <string name="app_name">GitHub Search Dev</string>
+</resources>
