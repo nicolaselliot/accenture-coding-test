@@ -84,8 +84,10 @@ an artifact that disagrees with it.**
   decided at packaging time or at generation time. `CLAUDE.md` requires a dev-only affordance to be
   excluded by variant rather than gated by an `if`, and a build marker in the UI would be exactly
   that `if`. The constant stays as provenance, and the generator's log line reports it.
-- Four variants are declared and three combinations are reachable per invocation pair; nothing
-  about the matrix is hidden from a reviewer reading the convention plugin.
+- The matrix is four flavor/build-type combinations, and every one of them is buildable: an
+  invocation enables the selected flavor's `debug` and `release`, so the pair of invocations covers
+  all four. Nothing about it is hidden from a reviewer reading the convention plugin — both product
+  flavors are declared there, and only the filter is per-invocation.
 
 ## Alternatives considered
 
