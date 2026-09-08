@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The launcher label in Japanese. Its English counterpart is in values/strings.xml.
+
+      This bundle is why the label is localised at all: every *in-app* string comes from
+      :core:designsystem's Compose resources, which the manifest cannot read — it resolves
+      android:label through the platform resource system, before any Compose resource exists. So
+      the one string the platform owns needs the one Android resource bundle this module has.
+
+      Adding it also arms a gate that could not fire before. Android Lint's MissingTranslation has
+      nothing to compare against when a project declares no locale at all; with values-ja present,
+      the next string added to values/ and forgotten here fails `lint` in CI.
+    -->
+    <string name="app_name">GitHub リポジトリ検索</string>
+</resources>
