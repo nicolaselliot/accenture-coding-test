@@ -1,8 +1,15 @@
+import dev.nicolas.githubsearch.buildlogic.AppFlavor
+import dev.nicolas.githubsearch.buildlogic.requestedAppFlavor
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
     id("githubsearch.desktop.application")
 }
+
+// Desktop has no product flavors of its own — the JVM target is one variant — so the flavor
+// arrives the same way it does everywhere else, as a Gradle property read by build-logic. It
+// selects the generated AppConfig; here it decides the identity of what jpackage installs.
+val selectedFlavor = requestedAppFlavor()
 
 kotlin {
     sourceSets {
@@ -26,7 +33,16 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             // jpackage uses packageName for install paths, so no spaces; and it requires a strict
             // MAJOR.MINOR.PATCH version with no suffix.
-            packageName = "GitHubSearch"
+            //
+            // Per flavor, for the reason the Android applicationId carries a `.dev` suffix: the two
+            // installs must not overwrite each other, and the one in the Applications folder or the
+            // Start menu has to say which it is. The suffix cannot go on packageVersion instead —
+            // jpackage rejects anything but three numbers there.
+            packageName =
+                when (selectedFlavor) {
+                    AppFlavor.Dev -> "GitHubSearchDev"
+                    AppFlavor.Prod -> "GitHubSearch"
+                }
             packageVersion = "1.0.0"
             vendor = "dev.nicolas"
         }
