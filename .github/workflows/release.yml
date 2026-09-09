@@ -410,11 +410,19 @@ jobs:
       # from 7.5 minutes to 33 and the macOS CI leg from 14 minutes to over 70. So it is passed per
       # invocation, to one task.
       #
-      # The archive below then finds this up to date and its embed step links nothing. The device
+      # The flavor is load-bearing here, not decoration. The archive runs Gradle a second time
+      # through the scheme's script phase with GITHUBSEARCH_FLAVOR=prod from Config-prod.xcconfig,
+      # and the flavor is what :core:common:generateAppConfig writes into shared code. Omitted,
+      # this step builds `dev` (AppFlavor.Default), the archive regenerates AppConfig as `prod`,
+      # and every native compilation and this link run again inside the script phase — on the
+      # default heap, which is the one thing this step exists to prevent.
+      #
+      # With it, the archive finds this up to date and its script phase links nothing. The device
       # architecture only, which is what `generic/platform=iOS` archives.
       - name: Link the release framework
         run: >
           ./gradlew :shared:linkReleaseFrameworkIosArm64
+          -Pgithubsearch.flavor=prod
           -Pkotlin.native.jvmArgs=-Xmx6g
           --stacktrace
 
