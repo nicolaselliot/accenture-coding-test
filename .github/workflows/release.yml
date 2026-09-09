@@ -395,6 +395,22 @@ jobs:
             echo "No tag; the archive keeps the version pinned in the project."
           fi
 
+      # Linked here, as its own step, rather than left to the archive's script phase — because this
+      # is the one task in the project that needs a large heap and it should be the only thing that
+      # gets one. Release-mode Kotlin/Native runs a whole-program pass that exhausts the default
+      # heap; setting that globally in gradle.properties applied it to *every* native compilation
+      # and, on a runner with about 7 GB, turned each link into paging: one debug test link went
+      # from 7.5 minutes to 33 and the macOS CI leg from 14 minutes to over 70. So it is passed per
+      # invocation, to one task.
+      #
+      # The archive below then finds this up to date and its embed step links nothing. The device
+      # architecture only, which is what `generic/platform=iOS` archives.
+      - name: Link the release framework
+        run: >
+          ./gradlew :shared:linkReleaseFrameworkIosArm64
+          -Pkotlin.native.jvmArgs=-Xmx6g
+          --stacktrace
+
       # Release, which is the prod flavor: Config-prod.xcconfig sets GITHUBSEARCH_FLAVOR=prod, and
       # the generator then drops the token and forces logging to NONE whatever the environment
       # carries. That is what makes a distributed iOS build unable to hold a credential.

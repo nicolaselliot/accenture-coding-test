@@ -134,6 +134,10 @@ jobs:
       #
       # The dev flavor, because that is the default and `build` assembles only the selected
       # flavor's variants — see docs/adr/0011.
+      # No iOS release framework link happens here, and it is not excluded on the command line:
+      # `:shared` keeps those tasks out of `assemble` itself, so every invocation of `build` — CI
+      # or local, on any platform — is free of them. See shared/build.gradle.kts for why, and
+      # release.yml for where they are linked instead.
       - name: Build and test
         run: ./gradlew build --stacktrace
 
