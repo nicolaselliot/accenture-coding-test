@@ -1,0 +1,22 @@
+/*
+  The launcher label in Japanese. Its English counterpart is not here: it comes from
+  INFOPLIST_KEY_CFBundleDisplayName in the xcconfigs, which is per configuration, so English
+  distinguishes the flavors as "GitHub Search" and "GitHub Search Dev".
+
+  This bundle is why the label is localised at all, and it is the same reason Android needs
+  values-ja/: every *in-app* string comes from :core:designsystem's Compose resources, which the
+  platform cannot read when it draws a home-screen label.
+
+  There is deliberately no en.lproj. A .strings file wins over the Info.plist value for the
+  language it covers, so adding one would replace the per-flavor English names with a single
+  string and lose the distinction in both languages rather than one.
+
+  Known asymmetry with Android, which has all four combinations of flavor and locale: on a
+  Japanese device both flavors read「GitHub リポジトリ検索」, because a .strings file is a static
+  resource and cannot vary per configuration the way src/dev/res/values-ja/ does. The prod name is
+  the one chosen, since prod is what testers and reviewers install; the two builds are still
+  separated by bundle identifier. Closing the gap properly needs a per-configuration copy phase
+  selecting one of two ja.lproj directories, which is more machinery than a dev-only label in one
+  locale is worth.
+*/
+"CFBundleDisplayName" = "GitHub リポジトリ検索";

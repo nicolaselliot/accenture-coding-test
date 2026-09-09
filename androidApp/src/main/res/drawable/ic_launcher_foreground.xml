@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The launcher icon's foreground layer: the same magnifying glass the iOS icon
+  draws, in the same tone (primaryTone90 from :core:designsystem's Color.kt), so
+  the two platforms are not two different apps on a home screen.
+
+  A vector rather than five densities of PNG, which minSdk 26 makes free: every
+  device that can install this app supports adaptive icons, so there is no
+  pre-26 fallback to keep in step and no mipmap-anydpi-v26 qualifier needed.
+
+  The geometry is sized to the mask, not to the canvas, and that is the whole
+  reason these numbers look arbitrary. An adaptive foreground is 108dp with only
+  the middle 72dp guaranteed visible, and a circular launcher mask clips to a
+  36dp radius about the centre. The glyph runs along the 45-degree diagonal, so
+  its extremes — the lens's outer edge and the handle's tip — are exactly where
+  a circular mask bites hardest: scaled straight from the iOS artwork the tip
+  sits 43.6dp out and loses its end. Here the whole glyph spans 66dp of that
+  diagonal, centred, so its furthest point is 33dp out and inside every mask.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- The lens, stroked so the middle stays transparent and the background layer shows. -->
+    <path
+        android:pathData="M 45.2,45.2 m -17,0 a 17,17 0 1,0 34,0 a 17,17 0 1,0 -34,0"
+        android:strokeColor="#DFE0FF"
+        android:strokeWidth="7.2" />
+
+    <!-- The handle, starting exactly on the lens's outer edge so the two read as one shape. -->
+    <path
+        android:pathData="M 59.8,59.8 L 74.8,74.8"
+        android:strokeColor="#DFE0FF"
+        android:strokeLineCap="round"
+        android:strokeWidth="7.2" />
+</vector>

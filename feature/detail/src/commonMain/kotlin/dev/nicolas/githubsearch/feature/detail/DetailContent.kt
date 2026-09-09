@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import coil3.compose.AsyncImage
 import dev.nicolas.githubsearch.core.common.AppError
@@ -311,11 +312,17 @@ private fun FailureMessage(
     onRetry: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(Spacing.extraLarge),
+        // Centred vertically and horizontally, as on the search screen: the two screens show the
+        // same errors from the same strings, so they should not put them in two different places.
+        modifier = Modifier.fillMaxSize().padding(Spacing.extraLarge),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.medium),
+        verticalArrangement = Arrangement.spacedBy(Spacing.medium, Alignment.CenterVertically),
     ) {
-        Text(text = stringResource(messageFor(error)), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text = stringResource(messageFor(error)),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+        )
 
         // Every error state carries a working retry; an error the user can only stare at is a
         // dead end, and this screen has nothing else on it.

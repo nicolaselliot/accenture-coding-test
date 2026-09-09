@@ -1,0 +1,29 @@
+// The dev flavor, attached to the standard Debug configuration.
+//
+// GITHUBSEARCH_FLAVOR reaches Gradle as an environment variable rather than a -P flag: Xcode
+// exports every build setting into the run-script phase's environment, and requestedAppFlavor()
+// reads exactly this name. The committed gradle.properties deliberately sets no
+// githubsearch.flavor, so nothing in version control can shadow it.
+//
+// KOTLIN_FRAMEWORK_BUILD_TYPE is deliberately absent: the embed task derives it from the
+// configuration name, and stating a default twice is how the two come to disagree. It becomes
+// mandatory the day a configuration is named anything but Debug or Release.
+GITHUBSEARCH_FLAVOR = dev
+
+// Appended to the bundle identifier by the target setting, so the base id stays in one place.
+// The iOS counterpart of Android's applicationIdSuffix = ".dev", and what lets both builds sit
+// on one device.
+BUNDLE_ID_SUFFIX = .dev
+
+// Without a display name iOS falls back to PRODUCT_NAME, which is why the home screen currently
+// reads "iosApp". Labelled distinctly, as GitHub Search Dev is on Android.
+INFOPLIST_KEY_CFBundleDisplayName = GitHub Search Dev
+
+// Withholds the Japanese launcher label from dev, so the two builds stay distinguishable on a
+// Japanese device. A .strings file overrides the per-configuration Info.plist value, so with it
+// present both flavors read「GitHub リポジトリ検索」 and only the bundle identifier tells them apart.
+// Excluding it lets dev fall back to INFOPLIST_KEY_CFBundleDisplayName in both locales.
+// The path form is required: `ja.lproj` alone does not match, because Xcode matches the file name
+// (InfoPlist.strings), not the directory. Verified: dev's in-app UI is still Japanese, since
+// Compose resolves its own locale and does not consult the bundle's localizations.
+EXCLUDED_SOURCE_FILE_NAMES = */ja.lproj/*

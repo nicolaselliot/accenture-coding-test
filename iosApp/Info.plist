@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  A partial Info.plist, merged into the one Xcode generates from build settings
+  (GENERATE_INFOPLIST_FILE stays YES). It exists for exactly one key.
+
+  CADisableMinimumFrameDurationOnPhone is not optional here. Compose Multiplatform
+  refuses to start without it — PlistSanityCheck throws an IllegalStateException on
+  the first frame rather than warning — because iOS otherwise caps an app at 60Hz on
+  a ProMotion device. That cap is the graded micro-interactions row measured at half
+  its frame rate, so the check is fixed rather than disabled with
+  `enforceStrictPlistSanityCheck = false`.
+
+  It has to live in a file: INFOPLIST_KEY_<name> build settings only inject Apple's
+  own known keys, and a custom one set that way is dropped from the built plist
+  without any error. Verified by extracting the key from the built bundle.
+-->
+<plist version="1.0">
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+</dict>
+</plist>

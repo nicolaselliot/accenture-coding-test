@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The launcher icon's background layer, as a colour rather than a drawable: the
+  layer is a flat fill, and primaryTone30 is the same value the iOS icon uses.
+
+  Its own file rather than a shared colors.xml, following the platform template
+  convention — this is icon material, not a theme token. The theme's colours are
+  seeded in :core:designsystem and never restated as Android resources.
+-->
+<resources>
+    <color name="ic_launcher_background">#00429A</color>
+</resources>
