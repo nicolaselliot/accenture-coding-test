@@ -6,6 +6,29 @@ plugins {
 }
 
 kotlin {
+    // The framework Xcode links against, and the only artifact iOS sees of this whole graph.
+    //
+    // Declared here rather than in the `githubsearch.kmp.library` convention: every shared module
+    // has iOS targets, but only :shared is an entry point, and a framework per module would be
+    // eleven frameworks for Xcode to embed instead of one composition root.
+    //
+    // Configured through `withType` rather than by naming `iosArm64 { }` and `iosSimulatorArm64 { }`
+    // in turn, so adding a target in the convention plugin does not silently produce a target with
+    // no framework — the failure would be an Xcode link error naming a missing architecture.
+    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
+        binaries.framework {
+            // Pinned in IMPLEMENTATION_PLAN.md → Fixed parameters. Xcode imports it under this
+            // name, so changing it is an Xcode-project change as well as a Gradle one.
+            baseName = "Shared"
+
+            // Static, which is the Compose Multiplatform default and not merely a size choice:
+            // a dynamic framework has to be embedded *and* signed as an app-bundle dependency, and
+            // duplicate-symbol failures between it and the Compose runtime are the documented
+            // reason the templates set this.
+            isStatic = true
+        }
+    }
+
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:common"))
