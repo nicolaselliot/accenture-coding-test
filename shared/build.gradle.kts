@@ -76,3 +76,17 @@ kotlin {
         }
     }
 }
+
+// The release frameworks are declared above but deliberately kept out of `assemble`, and therefore
+// out of `build`.
+//
+// Nothing consumes one there. Only an Xcode archive does, and release.yml links it as an explicit
+// step so that one task — and nothing else — gets the large heap its whole-program pass needs.
+// Left attached, every `./gradlew build` on macOS paid for two of them: 18 minutes each on a CI
+// runner, for an artifact the build then discarded. And they would now fail outright, because the
+// heap that made them fit is no longer set globally — see gradle.properties.
+//
+// The link tasks still exist and can be asked for by name; they are simply no longer implied.
+tasks.named("assemble") {
+    setDependsOn(dependsOn.filterNot { it.toString().contains("linkReleaseFramework") })
+}
