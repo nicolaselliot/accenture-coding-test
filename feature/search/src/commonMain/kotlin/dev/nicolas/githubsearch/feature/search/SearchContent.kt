@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import coil3.compose.AsyncImage
 import dev.nicolas.githubsearch.core.common.AppError
@@ -308,7 +309,15 @@ private fun CentredMessage(message: StringResource) {
         modifier = Modifier.fillMaxSize().padding(Spacing.extraLarge),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = stringResource(message), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text = stringResource(message),
+            style = MaterialTheme.typography.bodyMedium,
+            // The Box centres the text *block*; this centres the lines inside it. Without it a
+            // message that wraps is ragged-left inside a centred block, which reads as a layout
+            // bug rather than as wrapping — and it only shows in the locale and width where it
+            // wraps, which is why it survived this long.
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -326,11 +335,18 @@ private fun FailureMessage(
     onRetry: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(Spacing.extraLarge),
+        // fillMaxSize and a centred arrangement, matching CentredMessage: the four phases of this
+        // screen are cross-faded into each other, so a message that sits at the top in one phase
+        // and in the middle in another reads as the text sliding rather than as the state changing.
+        modifier = Modifier.fillMaxSize().padding(Spacing.extraLarge),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.medium),
+        verticalArrangement = Arrangement.spacedBy(Spacing.medium, Alignment.CenterVertically),
     ) {
-        Text(text = stringResource(message), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text = stringResource(message),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+        )
 
         // Every error state carries a working retry; an error the user can only stare at is a
         // dead end.
