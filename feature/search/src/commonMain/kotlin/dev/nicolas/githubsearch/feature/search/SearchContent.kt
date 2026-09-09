@@ -119,7 +119,7 @@ public fun SearchContent(
                     SearchPhase.Idle -> CentredMessage(Res.string.search_idle)
                     SearchPhase.Loading -> ResultSkeleton()
                     SearchPhase.Empty -> CentredMessage(Res.string.search_empty)
-                    is SearchPhase.Failed -> FailureMessage(error = phase.error, onRetry = actions.onRetry)
+                    is SearchPhase.Failed -> CentredFailure(error = phase.error, onRetry = actions.onRetry)
                     is SearchPhase.Content -> ResultList(phase = phase, actions = actions)
                 }
             }
@@ -321,12 +321,22 @@ private fun CentredMessage(message: StringResource) {
     }
 }
 
+/**
+ * The failed phase, centred in the results area the way [CentredMessage] centres idle and empty.
+ *
+ * A wrapper rather than a flag on [FailureMessage]: the four phases are cross-faded into each
+ * other, so a message sitting at the top in one and the middle in another reads as the text
+ * sliding rather than as the state changing — but that argument is about *this* call site only, and
+ * the same message is also drawn as a footer inside the list.
+ */
 @Composable
-private fun FailureMessage(
+private fun CentredFailure(
     error: AppError,
     onRetry: () -> Unit,
 ) {
-    FailureMessage(messageFor(error), onRetry)
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        FailureMessage(messageFor(error), onRetry)
+    }
 }
 
 @Composable
@@ -334,13 +344,15 @@ private fun FailureMessage(
     message: StringResource,
     onRetry: () -> Unit,
 ) {
+    // Sized to its content and left where its caller puts it, because it has two callers: the
+    // failed phase, which fills the results area through CentredFailure, and the append-failure
+    // footer, which is one item inside the LazyColumn. Filling or centring here would be inert in
+    // the footer — a lazy item's height is unbounded, so fillMaxSize degenerates to fillMaxWidth —
+    // and the shape would then depend silently on whichever parent happened to measure it.
     Column(
-        // fillMaxSize and a centred arrangement, matching CentredMessage: the four phases of this
-        // screen are cross-faded into each other, so a message that sits at the top in one phase
-        // and in the middle in another reads as the text sliding rather than as the state changing.
-        modifier = Modifier.fillMaxSize().padding(Spacing.extraLarge),
+        modifier = Modifier.fillMaxWidth().padding(Spacing.extraLarge),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.medium, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.spacedBy(Spacing.medium),
     ) {
         Text(
             text = stringResource(message),
