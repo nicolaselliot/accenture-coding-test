@@ -43,7 +43,12 @@ compose.desktop {
                     AppFlavor.Dev -> "GitHubSearchDev"
                     AppFlavor.Prod -> "GitHubSearch"
                 }
-            packageVersion = "1.0.0"
+            // Overridden from the tag by the release workflow, for the reason the Android
+            // versionName is: two installers built from different tags would otherwise carry the
+            // same version, and Windows and macOS both decide "is this an upgrade" from it.
+            // jpackage takes a strict MAJOR.MINOR.PATCH and rejects a suffix, so the workflow
+            // strips the tag's leading `v`.
+            packageVersion = providers.gradleProperty("packageVersion").orNull ?: "1.0.0"
             vendor = "dev.nicolas"
         }
     }
