@@ -351,7 +351,14 @@ jobs:
           # A random password for a keychain that exists for one job; it is never persisted.
           keychain_password=$(uuidgen)
           security create-keychain -p "$keychain_password" "$keychain"
-          security set-keychain-settings -lut 900 "$keychain"
+          # 21600s is GitHub's own documented value, and it is the job ceiling rather than a
+          # guess: the idle timer runs from the unlock below and is *not* reset by build activity,
+          # so anything shorter than the whole job races the release link and the archive's
+          # compile phase — the first thing to touch this keychain is the archive's codesign, and
+          # an auto-lock reaches it as an unanswerable password prompt on a headless runner. The
+          # certificate's lifetime is bounded by the delete step instead, which runs before the
+          # Firebase CLI's npm tree does.
+          security set-keychain-settings -lut 21600 "$keychain"
           security unlock-keychain -p "$keychain_password" "$keychain"
           security import "$certificate" -k "$keychain" -P "$CERTIFICATE_PASSWORD" \
             -T /usr/bin/codesign -T /usr/bin/security
