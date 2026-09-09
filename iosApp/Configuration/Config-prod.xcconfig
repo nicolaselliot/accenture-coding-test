@@ -1,0 +1,11 @@
+// The prod flavor, attached to the standard Release configuration — the one PR18 archives for
+// Firebase distribution. The generator drops the token and forces logging to NONE on this flavor
+// after applying any overrides, so nothing configurable can make a prod build talkative or
+// credentialed. See ADR-0011.
+GITHUBSEARCH_FLAVOR = prod
+
+// Empty on purpose rather than absent: prod is the unsuffixed identity, and saying so beats
+// relying on an unset variable expanding to nothing.
+BUNDLE_ID_SUFFIX =
+
+INFOPLIST_KEY_CFBundleDisplayName = GitHub Search
