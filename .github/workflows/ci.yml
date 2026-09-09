@@ -151,6 +151,25 @@ jobs:
           ./gradlew :androidApp:assembleProdRelease :androidApp:verifyProdReleaseComposeResources
           -Pgithubsearch.flavor=prod --stacktrace
 
+      # The Gradle build above compiles the iOS klibs and runs the simulator test suites, but it
+      # never opens the Xcode project — so until now a broken project passed CI: a wrong build
+      # setting, a script phase that fails, a scheme nobody committed. This is the cheapest thing
+      # that notices, and it needs no signing material because a simulator build is unsigned.
+      #
+      # Debug/dev deliberately, matching the Gradle leg's flavor. The Release configuration is the
+      # release workflow's business: it triggers the Kotlin/Native whole-program link, which costs
+      # minutes and is verified where the artifact it produces is actually distributed.
+      #
+      # Xcode is not pinned here, unlike release.yml. This leg answers "does the project still
+      # build", and pinning it would fail every pull request the week GitHub rotates the image;
+      # the version is printed instead, so drift is visible in the log rather than silent.
+      - name: Build the iOS app
+        if: matrix.os == 'macos-latest'
+        run: |
+          xcodebuild -version
+          xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' build
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
