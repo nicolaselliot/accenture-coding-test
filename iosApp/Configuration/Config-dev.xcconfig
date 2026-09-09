@@ -18,3 +18,12 @@ BUNDLE_ID_SUFFIX = .dev
 // Without a display name iOS falls back to PRODUCT_NAME, which is why the home screen currently
 // reads "iosApp". Labelled distinctly, as GitHub Search Dev is on Android.
 INFOPLIST_KEY_CFBundleDisplayName = GitHub Search Dev
+
+// Withholds the Japanese launcher label from dev, so the two builds stay distinguishable on a
+// Japanese device. A .strings file overrides the per-configuration Info.plist value, so with it
+// present both flavors read「GitHub リポジトリ検索」 and only the bundle identifier tells them apart.
+// Excluding it lets dev fall back to INFOPLIST_KEY_CFBundleDisplayName in both locales.
+// The path form is required: `ja.lproj` alone does not match, because Xcode matches the file name
+// (InfoPlist.strings), not the directory. Verified: dev's in-app UI is still Japanese, since
+// Compose resolves its own locale and does not consult the bundle's localizations.
+EXCLUDED_SOURCE_FILE_NAMES = */ja.lproj/*
