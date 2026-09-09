@@ -1,7 +1,6 @@
 package dev.nicolas.githubsearch.shared
 
 import androidx.compose.ui.window.ComposeUIViewController
-import dev.nicolas.githubsearch.shared.di.initKoin
 import platform.UIKit.UIViewController
 
 /**
@@ -19,23 +18,17 @@ import platform.UIKit.UIViewController
  * about this name — Swift calls whatever it is called. Two suppressions to keep one capital letter
  * is a worse trade than a call site that reads `MainViewControllerKt.mainViewController()`.
  *
- * Koin starts here rather than in Swift, which is the one place this diverges from Desktop. The
- * ordering requirement is the same — the composition reads bindings on its first frame, so the
- * graph has to exist before it, and this function is a factory rather than a composable, so it runs
- * before that frame. What differs is where the ordering can go wrong: Desktop's `main` is a single
- * Kotlin function that cannot forget its own first line, while a two-call protocol across the
- * language boundary is one an `iOSApp.swift` can silently get wrong, and the symptom would be a
- * crash on the first frame in a file that looks correct.
+ * The graph is **not** started here: `iosAppApp.init()` does it, mirroring Desktop's `main`. An
+ * earlier revision of this file started Koin in this function on the reasoning that iOS builds one
+ * root view controller, and that reasoning was wrong. SwiftUI owns the lifetime of the view this
+ * factory feeds, not the process, so it calls the factory again whenever it rebuilds — a scene
+ * reconnected after memory pressure, a second window on iPad, a preview refresh — and `startKoin`
+ * throws on the second call. A factory has to be safe to call twice; process-wide setup belongs
+ * where the process starts.
  *
- * A second call is therefore a programming error, and Koin reports it as one. iOS builds a single
- * root view controller, so this is called once for the life of the process; there is no
- * counterpart to Desktop's [dev.nicolas.githubsearch.shared.di.shutdownKoin] because an iOS
- * process is killed rather than unwound.
+ * There is no counterpart to Desktop's [dev.nicolas.githubsearch.shared.di.shutdownKoin] because
+ * an iOS process is killed rather than unwound.
  *
  * @return the application's root view controller, ready to be hosted.
  */
-public fun mainViewController(): UIViewController {
-    initKoin()
-
-    return ComposeUIViewController { GithubSearchApp() }
-}
+public fun mainViewController(): UIViewController = ComposeUIViewController { GithubSearchApp() }
