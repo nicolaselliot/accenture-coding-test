@@ -1,7 +1,10 @@
 name: Release
 
-# The provisional distribution channel: a signed Android APK to Firebase App Distribution, and the
-# Desktop packages built where they can only be built — the .dmg on macOS, the .msi on Windows.
+# The provisional distribution channel, one per platform: the mobile builds go to Firebase App
+# Distribution — the signed Android APK here, the iOS .ipa from PR18 — and the Desktop packages to
+# the GitHub Release, built where they can only be built: the .dmg on macOS, the .msi on Windows.
+# The APK is attached to the Release as well, so a reviewer who is not an invited tester can
+# sideload it: a second copy of one artifact, not a second channel.
 #
 # Deliberately separate from ci.yml. That workflow runs on every pull request and must stay
 # secret-free; this one is the only place in the repository that touches signing material, and it
@@ -114,6 +117,14 @@ jobs:
           packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
 
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          # No Actions cache in the release path, in either direction. Restoring one would let an
+          # entry written by any other run on this repository contribute to the APK this job signs
+          # with the upload key — a shorter path into a released artifact than anything else here
+          # defends against. Not writing one is what keeps the signing passwords on the runner:
+          # AGP writes them in plaintext under `build/intermediates/`, and the Gradle
+          # configuration cache holds them too. A release build is rare; slow is the right trade.
+          cache-disabled: true
 
       # Into the runner's temporary directory, never the checkout: a key written inside the
       # workspace is one `upload-artifact` glob away from being published, and it would also be
@@ -132,8 +143,9 @@ jobs:
 
       # prod/release is what ships, and the flavor has to be named: one Gradle invocation generates
       # one AppConfig, so :androidApp builds only the selected flavor's variants (docs/adr/0011).
-      # versionCode comes from the run number — Firebase rejects a non-monotonic build number, and a
-      # hand-maintained counter collides the first time two branches ship.
+      # versionCode comes from the run number — a tester installs over the build they already have
+      # and Android refuses an APK whose versionCode is below the installed one, so it has to rise
+      # and never repeat. A hand-maintained counter collides the first time two branches ship.
       # The version the artifacts claim. A tag gives it: `v1.2.0` becomes `1.2.0`, because
       # jpackage takes three numbers and nothing else, and an APK's versionName should read the
       # same. A dispatch has no tag, so the pinned default in the convention plugin stands.
@@ -177,7 +189,11 @@ jobs:
       # that makes that impossible — and it names the APK it verified, so the path is checked too.
       - name: Verify the APK is signed
         run: |
-          apk=$(find androidApp/build/outputs/apk/prod/release -name '*.apk' -print -quit)
+          # `2>/dev/null || true` so that a *missing* directory reaches the named error below.
+          # `shell: bash` runs with `-e`: find exits non-zero, the assignment inherits that status,
+          # and the step would die on `find: …: No such file or directory` — which is precisely the
+          # output-layout change this guard exists to report.
+          apk=$(find androidApp/build/outputs/apk/prod/release -name '*.apk' -print -quit 2>/dev/null || true)
           test -n "$apk" || { echo "::error::No prod release APK was produced."; exit 1; }
           echo "Verifying $apk"
 
@@ -190,7 +206,9 @@ jobs:
 
           # Whichever build-tools AGP installed for this build, newest first. Pinning a version
           # here would be a second place for the SDK layout to drift.
-          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          # `|| true` for the same reason as above, and it has to sit outside the pipeline:
+          # `pipefail` would otherwise carry find's status through `sort` and `tail`.
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f 2>/dev/null | sort -V | tail -1 || true)
           test -n "$apksigner" || { echo "::error::apksigner not found under $ANDROID_HOME/build-tools."; exit 1; }
 
           "$apksigner" verify --verbose "$apk"
@@ -219,9 +237,14 @@ jobs:
         run: |
           # Outside the workspace, like the key, and removed on the way out.
           credentials="$RUNNER_TEMP/firebase-service-account.json"
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$credentials"
+          # The trap first, so an interrupt between here and the write still removes the file. Then
+          # umask before the redirect, exactly as the upload key does it: a service-account key must
+          # not exist readable either, not even for the instant a trailing `chmod` leaves open.
           trap 'rm -f "$credentials"' EXIT
-          chmod 600 "$credentials"
+          (umask 077 && printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$credentials")
+          # Same reasoning as the key: an empty or truncated secret should name itself here rather
+          # than surface as an authentication error from the CLI.
+          test -s "$credentials" || { echo "::error::Firebase service account secret is empty."; exit 1; }
 
           GOOGLE_APPLICATION_CREDENTIALS="$credentials" firebase appdistribution:distribute "$APK_PATH" \
             --app "$FIREBASE_APP_ID" \
@@ -273,6 +296,10 @@ jobs:
           packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
 
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          # Same reasoning as the Android job: this one holds no secret, but it produces the
+          # installers attached to a public release, and their integrity is the point.
+          cache-disabled: true
 
       # jpackage shells out to WiX for the .msi and fails without it. Installed rather than assumed:
       # the runner image has carried it in the past and dropped it before now, and the failure it
@@ -332,7 +359,9 @@ jobs:
           # Compose plugin refuses a Homebrew JDK — so the path could not be verified before now.
           # The guard below is what turns a layout change into a named failure rather than a
           # release with a missing asset.
-          package=$(find desktopApp/build/compose/binaries -name "*.${{ matrix.package }}" -type f -print -quit)
+          # `2>/dev/null || true` so a missing binaries root reaches the guard below rather than
+          # killing the step under `-e` — the layout change is the case this is here to name.
+          package=$(find desktopApp/build/compose/binaries -name "*.${{ matrix.package }}" -type f -print -quit 2>/dev/null || true)
           test -n "$package" || { echo "::error::No .${{ matrix.package }} was produced."; exit 1; }
           echo "Packaged $package"
           echo "PACKAGE_PATH=$package" >> "$GITHUB_ENV"
