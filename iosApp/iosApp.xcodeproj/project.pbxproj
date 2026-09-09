@@ -6,7 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		043C8A45305131F8007CFAE9 /* Config-dev.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Config-dev.xcconfig"; sourceTree = "<group>"; };
+		043C8A46305131F8007CFAE9 /* Config-prod.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Config-prod.xcconfig"; sourceTree = "<group>"; };
 		04467302305118E4002106B4 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -29,9 +34,19 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		043C8A47305131F8007CFAE9 /* Configuration */ = {
+			isa = PBXGroup;
+			children = (
+				043C8A45305131F8007CFAE9 /* Config-dev.xcconfig */,
+				043C8A46305131F8007CFAE9 /* Config-prod.xcconfig */,
+			);
+			path = Configuration;
+			sourceTree = "<group>";
+		};
 		044672F9305118E4002106B4 = {
 			isa = PBXGroup;
 			children = (
+				043C8A47305131F8007CFAE9 /* Configuration */,
 				04467304305118E4002106B4 /* iosApp */,
 				04467303305118E4002106B4 /* Products */,
 			);
@@ -149,9 +164,9 @@
 /* Begin XCBuildConfiguration section */
 		0446730B305118E5002106B4 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 043C8A45305131F8007CFAE9 /* Config-dev.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -187,6 +202,7 @@
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -214,9 +230,9 @@
 		};
 		0446730C305118E5002106B4 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 043C8A46305131F8007CFAE9 /* Config-prod.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -252,6 +268,7 @@
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -299,7 +316,7 @@
 					"-framework",
 					Shared,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.nicolas.githubsearch;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.nicolas.githubsearch$(BUNDLE_ID_SUFFIX)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -340,7 +357,7 @@
 					"-framework",
 					Shared,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.nicolas.githubsearch;
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.nicolas.githubsearch$(BUNDLE_ID_SUFFIX)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
