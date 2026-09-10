@@ -30,34 +30,43 @@ public const val LAST_SEARCH_PAGE: Int = SEARCH_RESULT_CAP / SEARCH_PAGE_SIZE
 /** GitHub's search pages are one-based; page 0 is a 422, not the first page. */
 public const val FIRST_SEARCH_PAGE: Int = 1
 
-/** The shortest query worth spending a request on. */
-public const val MIN_QUERY_LENGTH: Int = 2
+/**
+ * The shortest query GitHub will answer at all.
+ *
+ * One, not two. `q=k` is a valid search that returns real repositories; `q=` is the only shape the
+ * API refuses outright, with a 422. A higher floor would refuse a keyword the assignment explicitly
+ * allows —「何かしらのキーワードを入力できる」— to protect a request budget that submit-only
+ * triggering does not actually spend. See `docs/adr/0015`.
+ */
+public const val MIN_QUERY_LENGTH: Int = 1
 
 /**
- * Whether a query is worth spending a request on.
+ * Whether a query can be searched at all.
  *
  * Exported so the caller gating a submit control and the guard below apply the *same* rule. Exposing
  * only [MIN_QUERY_LENGTH] exports half of it: a caller checking `query.length` enables submit for
- * `" a "`, which trims to one character, and the user is told nothing matched a search that was
- * never sent.
+ * `"   "`, which trims to nothing, and the user is told nothing matched a search that was never
+ * sent. The trimming is the whole point of the function — `" k "` is searchable, `"   "` is not.
  */
 public fun isSearchable(query: String): Boolean = query.trim().length >= MIN_QUERY_LENGTH
 
 /**
  * Searches GitHub repositories, refusing the requests that cannot succeed.
  *
- * Both refusals exist for the same reason: unauthenticated search allows ten requests a minute, and
- * that is the budget the reviewer will actually be running against. A one-character query and a
- * page past the ceiling are both certain to be wasted, so neither reaches the network.
+ * Both refusals exist for the same reason, and it is not the rate limit: each names a request the
+ * *API* will not answer. GitHub rejects an empty `q` and any page past the result cap with a 422,
+ * so neither reaches the network. Nothing here refuses a request merely because it looks
+ * unpromising — that judgement belonged to a keystroke-triggered search this app does not have,
+ * and it cost the user a keyword the assignment allows. See `docs/adr/0015`.
  *
  * A refusal returns an empty success rather than a failure. Nothing went wrong — there is simply
  * nothing to show — and an error would put a retry control on screen for a query the user has to
  * edit first.
  *
- * Note what that costs: an empty result here is indistinguishable from GitHub matching nothing. The
- * minimum-length branch is therefore a **backstop protecting the request budget**, not an answer
- * the caller is meant to interpret. The ViewModel decides between "keep typing" and "no matches" —
- * it holds the query and has to gate the submit control on the same rule anyway.
+ * Note what that costs: an empty result here is indistinguishable from GitHub matching nothing. Both
+ * branches are therefore **backstops against a 422**, not answers the caller is meant to interpret.
+ * The caller gates its submit control on [isSearchable] and never sends a blank query in the first
+ * place, which is what keeps the ambiguity unreachable in practice.
  */
 public class SearchRepositoriesUseCase(
     private val repository: GithubRepositoryPort,

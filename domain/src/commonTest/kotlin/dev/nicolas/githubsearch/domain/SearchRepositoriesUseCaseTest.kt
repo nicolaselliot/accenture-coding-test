@@ -58,17 +58,16 @@ class SearchRepositoriesUseCaseTest {
         }
 
     @Test
-    fun `a query shorter than the minimum never reaches the port`() =
+    fun `a single character query reaches the port`() =
         runTest {
             val port = FakeGithubRepository()
 
-            val outcome = SearchRepositoriesUseCase(port)(query = "k", page = 1)
+            SearchRepositoriesUseCase(port)(query = "k", page = 1)
 
-            // Unauthenticated search allows ten requests a minute. A one-character query is never
-            // what the user meant, and spending a tenth of the budget discovering that turns the
-            // rate-limit state from an edge case into the normal experience.
-            assertEquals(Outcome.Success(emptyList()), outcome)
-            assertTrue(port.searches.isEmpty())
+            // 「何かしらのキーワードを入力できる」— `q=k` is a valid GitHub search that returns
+            // real repositories, so refusing it made the app narrower than its own specification.
+            // This is the assertion that fails if the floor is ever raised again without an ADR.
+            assertEquals(listOf("k" to 1), port.searches)
         }
 
     @Test
@@ -121,15 +120,18 @@ class SearchRepositoriesUseCaseTest {
     fun `isSearchable applies the same trimming the use case does`() =
         runTest {
             // The trap this closes: a caller checking `query.length >= MIN_QUERY_LENGTH` enables
-            // submit for " a " (length 3), the use case trims to "a" and returns empty, and the
+            // submit for "   " (length 3), the use case trims to "" and returns empty, and the
             // user is told nothing matched a search that was never sent. One predicate, both
             // sides.
-            assertEquals(false, isSearchable(" a "))
             assertEquals(false, isSearchable("   "))
+            // " a " trims to one character, which is searchable now — the padding is what the
+            // trimming removes, not the reason to refuse. It was the false case here while the
+            // floor was two, and is the clearest single assertion that the floor has moved.
+            assertEquals(true, isSearchable(" a "))
             assertEquals(true, isSearchable(" kt "))
 
             val port = FakeGithubRepository()
-            SearchRepositoriesUseCase(port)(query = " a ", page = 1)
+            SearchRepositoriesUseCase(port)(query = "   ", page = 1)
             assertTrue(port.searches.isEmpty())
         }
 }
