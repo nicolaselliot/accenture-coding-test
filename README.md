@@ -76,7 +76,7 @@ Android の回転と同じ `WindowSizeClass` の判定で list-detail になり�
 
 | | 最低バージョン | 確認環境 |
 |---|---|---|
-| Android | `minSdk 26`（Android 8.0） | エミュレータ Android 16（API 36） |
+| Android | `minSdk 26`（Android 8.0） | エミュレータ Android 17（API 37） |
 | iOS | 16.6 | シミュレータ iOS 26.5（iPhone 17 Pro） |
 | Desktop | JVM 21（macOS / Windows / Linux） | macOS |
 
