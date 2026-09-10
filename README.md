@@ -249,8 +249,8 @@ GitHub Actions が全ジョブに注入する名前であり、そちらを読�
 
 ```bash
 ./gradlew ktlintCheck detekt checkBuildLogic     # フォーマット + 静的解析 + build-logic 自身のテスト
-./gradlew build                                  # 全ターゲットのビルドと 247 件の共有テスト
-./gradlew testAndroidHostTest                    # Android ホスト JVM で 209 件
+./gradlew build                                  # 全ターゲットのビルドと 264 件の共有テスト
+./gradlew testAndroidHostTest                    # Android ホスト JVM で 222 件
 ./gradlew :androidApp:assembleProdRelease -Pgithubsearch.flavor=prod
 ```
 
@@ -347,6 +347,13 @@ public sealed interface AppError {
 特に **empty と error の区別**は重要で、「何もヒットしなかった」検索と「壊れた」検索は
 見た目が同じであってはならず、リトライが付くのは後者だけです。
 
+**レート制限のときは待ち時間を分で提示します。** `RateLimited` が運ぶのは実際の `Instant` なので、
+ViewModel が注入された `Clock` に対して残り時間を分（切り上げ、最低 1 分）に解決し、画面はその数字を
+表示します。「しばらく待ってください」では 1 分の待ちと 1 時間の待ちが同じ文面になり、詳細画面の
+予算は 1 時間あたり 60 回なので後者が現実に起こります。切り上げるのは、切り捨てると利用者を早く
+呼び戻して同じ失敗にもう 1 リクエスト使わせるためです。計算は `:core:common` の
+`rateLimitWaitMinutes` 1 箇所にあり、2 画面で規則がずれません。
+
 失敗の翻訳は Ktor の `HttpResponseValidator` 1 箇所に集約しており、リポジトリ側に
 散らばった `try/catch` はありません。
 
@@ -409,7 +416,8 @@ public sealed interface AppError {
   役に立たない。注入した `Clock` に対して換算します。
 
 ヘッダが欠けている・空・数値でない場合は汎用エラーに縮退します。クラッシュも、過去の `Instant` の
-生成もしません。
+生成もしません。**数値ではあるが信じられない値**（GitHub のどの予算よりも先＝1 時間超）も同じ扱いで、
+分数なしの文面に縮退します。画面が勝手に数字を作るより、具体的なことを言わない方がましだからです。
 
 ページングは検索結果 1,000 件で頭打ちになり、`page × per_page > 1000` のリクエストは 422 で
 拒否されます。`per_page = 30` から最終ページ **33** を計算しており、数値をハードコードしていません
@@ -440,10 +448,10 @@ Kent Beck の Canon TDD に従い、各 PR ではまずテストシナリオの�
 
 | | 件数 | 実行される場所 |
 |---|---:|---|
-| ユニットテスト（共有） | 209 | Desktop / iOS シミュレータ / Android ホスト JVM |
-| UI テスト（`runComposeUiTest`） | 38 | Desktop / iOS シミュレータ |
+| ユニットテスト（共有） | 222 | Desktop / iOS シミュレータ / Android ホスト JVM |
+| UI テスト（`runComposeUiTest`） | 42 | Desktop / iOS シミュレータ |
 | build-logic 自身のテスト | 15 | JVM |
-| **合計** | **262** | すべて毎 PR の CI 内 |
+| **合計** | **279** | すべて毎 PR の CI 内 |
 
 ### テストダブルは Fake が既定
 
@@ -787,8 +795,10 @@ GitHub が生成した `Initial commit`（`.gitignore` / `LICENSE` / `README.md`
 - **レート制限を設計の入力として扱っています。** 未認証 10 回/分という現実的な予算から
   「検索は明示的な submit」という UI の判断が出ており、逆ではありません。
   一次制限と二次制限の両方を扱い、リセット時刻は注入した `Clock` に対して解決するのでテスト可能です。
+  待ち時間は分で画面に出ます。トークンなしで触るレビュアーが最初に到達する状態なので、
+  そこが「しばらく待ってください」で終わらないことを実装の一部として扱っています。
 - **TDD を宣言した作業方法として実行し、各 PR にシナリオ一覧を残しています。**
-  262 件のテストは後から足したものではありません。
+  279 件のテストは後から足したものではありません。
 - **腐敗防止層があります。** DTO は `:data:github` の外に出ず、null 許容性と API の癖は
   境界のマッパーで正規化されるため、UI 層は `language: null` を知りません。
 - **決定を 13 本の ADR に記録しています。** 「なぜこの版なのか」「なぜこの beta を採らなかったのか」が
