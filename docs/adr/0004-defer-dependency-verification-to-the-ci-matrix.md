@@ -1,6 +1,6 @@
 # ADR-0004: Defer dependency verification metadata to the CI matrix
 
-- **Status:** Accepted
+- **Status:** Accepted, and **not carried out**. See *Amendment* below.
 - **Date:** 2026-09-05
 
 ## Context
@@ -64,6 +64,35 @@ The maintenance cost is now visible rather than discovered later: any dependency
 regenerating the metadata on all three hosts. That is a real burden for a project this size, and
 PR2 should weigh it against scoping verification to the JVM-only configurations, which are the
 host-independent part of the graph.
+
+## Amendment — 2026-09-10
+
+**The deferral was never completed, and this record read as though it had been.** Stating that
+plainly here matters more than the decision itself: a reader of the *Decision* section above would
+conclude that artifact checksums have been verified since PR2, and they have not.
+
+What PR2 actually shipped was the machinery, not the gate:
+
+- `.github/workflows/verification-metadata.yml` generates the metadata on each of the three
+  runners and merges the results through `scripts/merge_verification_metadata.py`.
+- The workflow is `workflow_dispatch` only, **has never been run**, and there is no step that
+  ingests its output.
+- There is no `gradle/verification-metadata.xml` in the repository, and `ci.yml` has no
+  verification step.
+
+So the "one-PR window in which artifact checksums are unverified" described under *Consequences*
+is in fact the whole project. The exposure is unchanged from what that paragraph names — a
+compromised artifact republished under an existing version — and the three mechanisms PR1 shipped
+still hold: literal versions in `gradle/libs.versions.toml` with no dynamic versions, a committed
+wrapper pinned by `distributionSha256Sum` and validated in CI by
+`gradle/actions/wrapper-validation`, and `RepositoriesMode.FAIL_ON_PROJECT_REPOS`.
+
+Why it stays unshipped rather than being finished now: the maintenance cost this record already
+predicted — regenerating on three hosts for every dependency change — is not worth paying on a
+two-screen submission whose dependency set is frozen. The honest state is a documented gap, which
+is what the README's *再現性* section says, and the two documents now agree. Finishing it means
+either running the merge workflow and committing its output, or scoping verification to the
+JVM-only configurations, which is the host-independent part of the graph.
 
 ## Alternatives considered
 
