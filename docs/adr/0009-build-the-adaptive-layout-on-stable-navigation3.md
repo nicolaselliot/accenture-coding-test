@@ -8,7 +8,8 @@
 The adaptive list-detail layout — 中「画面回転・様々な画面サイズ対応」 — needs two things: a window
 size class, and a way to show a list and a detail side by side.
 
-`IMPLEMENTATION_PLAN.md` recorded this as risk 2, with two paths: `material3-adaptive`'s
+The pre-implementation planning notes — a local working document, deliberately not committed —
+recorded this as risk 2, with two paths: `material3-adaptive`'s
 `adaptive-navigation3`, or manual `WindowSizeClass` branching on `window-core`. It called the second
 "arguably the better default".
 
@@ -51,10 +52,11 @@ because entries arrive in back-stack order and the list is always the start dest
 ## Consequences
 
 - No beta or alpha artifact in the dependency graph, and `adaptive-navigation3` can be dropped from
-  the plan's version table rather than carried with a caveat.
+  `gradle/libs.versions.toml` rather than carried with a caveat.
 - Roughly ninety lines of `Scene` and strategy that this project owns and must maintain, against a
   dependency that would have owned them. Accepted: it is a `Row`, a divider and a placeholder.
-- The pane split is equal halves. That is a new value and belongs in *Fixed parameters*.
+- The pane split is equal halves. That is a new value, and `TwoPaneScene` is its only committed
+  record — changing it is a decision to record here, not an edit.
 - Both entry decorators apply in both layouts, which is what makes crossing the breakpoint safe.
 - Risk 2 is closed. Risk 1 — the nav3 1.1.1 × CMP 1.12.0 pairing — was closed in PR10.
 

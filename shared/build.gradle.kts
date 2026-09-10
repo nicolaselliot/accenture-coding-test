@@ -17,8 +17,9 @@ kotlin {
     // no framework — the failure would be an Xcode link error naming a missing architecture.
     targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
         binaries.framework {
-            // Pinned in IMPLEMENTATION_PLAN.md → Fixed parameters. Xcode imports it under this
-            // name, so changing it is an Xcode-project change as well as a Gradle one.
+            // Xcode imports the framework under this name, so this line and the iosApp project
+            // are one pinned value in two places: changing it is an Xcode-project change as well
+            // as a Gradle one.
             baseName = "Shared"
 
             // Static, which is the Compose Multiplatform default and not merely a size choice:
