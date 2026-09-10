@@ -30,6 +30,8 @@ import dev.nicolas.githubsearch.core.designsystem.generated.resources.detail_ope
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.detail_stars
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.detail_watchers
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_not_found
+import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_rate_limited
+import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_rate_limited_wait
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.language_unknown
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.owner_avatar
 import dev.nicolas.githubsearch.core.designsystem.layout.formatCount
@@ -44,6 +46,7 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.time.Instant
 
 /**
  * What the detail screen draws, and what it reports when it is touched.
@@ -214,6 +217,33 @@ class DetailContentTest {
 
     @OptIn(ExperimentalTestApi::class)
     @Test
+    fun `a rate limited detail says how long to wait`() =
+        runComposeUiTest {
+            val phase = DetailPhase.Failed(AppError.RateLimited(RESET_AT), rateLimitWaitMinutes = WAIT_MINUTES)
+
+            val chrome = show(DetailUiState(LINUX_COORDINATES, phase))
+
+            // This endpoint allows sixty requests an hour unauthenticated, so the difference
+            // between "a moment" and the real number is the difference between waiting and
+            // tapping retry until the screen looks broken.
+            onNodeWithText(chrome.rateLimitedWait).assertIsDisplayed()
+            onNodeWithText(chrome.retry).assertIsDisplayed()
+        }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun `a rate limit with no believable reset falls back to the vague message`() =
+        runComposeUiTest {
+            val phase = DetailPhase.Failed(AppError.RateLimited(RESET_AT), rateLimitWaitMinutes = null)
+
+            val chrome = show(DetailUiState(LINUX_COORDINATES, phase))
+
+            onNodeWithText(chrome.rateLimited).assertIsDisplayed()
+            onNodeWithText(chrome.retry).assertIsDisplayed()
+        }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
     fun `the back affordance reports going back`() =
         runComposeUiTest {
             val chrome = show(DetailUiState(LINUX_COORDINATES, DetailPhase.Content(LINUX_DETAIL)))
@@ -324,6 +354,17 @@ class DetailContentTest {
 private const val CLICKABLE_TARGETS = 2
 
 /**
+ * The wait a rate-limited failure reports, in minutes.
+ *
+ * The content is handed this already resolved, so the value is arbitrary here — working it out
+ * from an instant is `DetailViewModel`'s job, and is tested there and in `:core:common`.
+ */
+private const val WAIT_MINUTES = 5
+
+/** Only present because [AppError.RateLimited] requires one; nothing on screen reads it. */
+private val RESET_AT = Instant.fromEpochSeconds(1_788_000_000)
+
+/**
  * The chrome strings this suite asserts against, filled in from composition.
  *
  * Read through `stringResource`, so the expected value comes from the same bundle — and the same
@@ -341,6 +382,10 @@ private class Chrome {
     var back = ""
     var retry = ""
     var notFound = ""
+    var rateLimited = ""
+
+    /** The rate-limit sentence for [WAIT_MINUTES], formatted by the same call the UI makes. */
+    var rateLimitedWait = ""
     var ownerAvatar = ""
 
     @Composable
@@ -355,6 +400,9 @@ private class Chrome {
         back = stringResource(Res.string.detail_back)
         retry = stringResource(Res.string.action_retry)
         notFound = stringResource(Res.string.error_not_found)
+        rateLimited = stringResource(Res.string.error_rate_limited)
+        // Parameterised, so it is resolved with the same argument the content will pass.
+        rateLimitedWait = stringResource(Res.string.error_rate_limited_wait, WAIT_MINUTES.toString())
         // Parameterised, so it has to be resolved with the argument the header will pass.
         ownerAvatar = stringResource(Res.string.owner_avatar, LINUX_COORDINATES.owner)
     }
