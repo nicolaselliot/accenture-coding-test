@@ -87,6 +87,31 @@ kotlin {
 // heap that made them fit is no longer set globally — see gradle.properties.
 //
 // The link tasks still exist and can be asked for by name; they are simply no longer implied.
+//
+// Detached by `TaskProvider.name`, not by `toString()` over the whole set. That set also holds an
+// opaque `DefaultTaskDependency` whose toString names nothing it contains, so a string match can
+// silently keep a task it meant to drop. What is found is then checked rather than assumed,
+// because failing open here is expensive and invisible: every `build` on macOS would run the
+// whole-program release link again, on a heap that no longer fits it.
+val expectedReleaseLinks =
+    kotlin.targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().size
+
 tasks.named("assemble") {
-    setDependsOn(dependsOn.filterNot { it.toString().contains("linkReleaseFramework") })
+    val releaseLinks =
+        dependsOn
+            .filterIsInstance<TaskProvider<*>>()
+            .filter { it.name.startsWith("linkReleaseFramework") }
+
+    // All or nothing. Zero is legitimate — a host that cannot cross-compile for iOS wires none
+    // of these — but a partial set means Kotlin exposes only some of them by name, and detaching
+    // just the visible ones would quietly restore the rest to `build`.
+    require(releaseLinks.isEmpty() || releaseLinks.size == expectedReleaseLinks) {
+        "assemble depends on ${releaseLinks.size} linkReleaseFramework task(s), expected 0 or " +
+            "$expectedReleaseLinks. Kotlin exposes only part of the set by provider name, so " +
+            "detaching by name is no longer sufficient. Fix the filter rather than removing this " +
+            "check: a release link left attached runs a whole-program pass on every `build`, on a " +
+            "heap that no longer fits it."
+    }
+
+    setDependsOn(dependsOn - releaseLinks.toSet())
 }
