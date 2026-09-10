@@ -42,13 +42,16 @@ PROBE :feature:detail    androidMain assets=null
 PROBE :shared            androidMain assets=null
 ```
 
-**AGP 9's `com.android.kotlin.multiplatform.library` plugin has no assets pipeline.** Its variants
-report `sources.assets == null`, and its AAR carries no `assets/` entry. The Compose plugin's call
+**AGP 9's `com.android.kotlin.multiplatform.library` plugin ships with its assets pipeline
+disabled.** Under its default configuration the variants report `sources.assets == null` and the AAR
+carries no `assets/` entry — see the amendment at the foot of this record, which corrects the
+stronger claim this paragraph originally made. The Compose plugin's call
 is a safe-call, so it is skipped in silence: the task stays registered with no output directory,
 contributes nothing, and Gradle reports it as skipped rather than as broken.
 
-That is the whole failure. Nothing is misconfigured in this repository; the CMP 1.12.0 × AGP 9.4.0
-pairing simply has no route from a shared module's resources to an Android APK.
+That is the whole failure. Nothing is misconfigured in this repository; with the plugin configured
+as it is here, the CMP 1.12.0 × AGP 9.4.0 pairing has no route from a shared module's resources to an
+Android APK.
 
 ## Decision
 
@@ -109,3 +112,42 @@ observed to fail for the right reason.
   has the exact final layout and would have needed no re-layout task. Rejected: it makes the Android
   APK's contents depend on the desktop target, so removing or renaming that target would break
   Android packaging for no visible reason.
+
+
+---
+
+## Amendment — 2026-09-10: the pipeline exists, and it is opt-in
+
+The original claim that the plugin "has no assets pipeline" was wrong. The probe that produced
+`sources.assets == null` was run without the one setting that turns the pipeline on.
+
+Re-tested by adding this to `githubsearch.kmp.library.gradle.kts` and rebuilding:
+
+```kotlin
+android {
+    androidResources {
+        enable = true
+    }
+}
+```
+
+| | `designsystem.aar` | `androidApp-dev-debug.apk` |
+|---|---:|---:|
+| With `androidResources.enable = true` | **2** `.cvr` entries | 2 `.cvr` entries |
+| Plugin default, as shipped on `main` | **0** `.cvr` entries | 2 `.cvr` entries |
+
+So the route from a shared module's resources into an Android artifact does exist. It is gated
+behind `androidResources { enable = true }`, and `sources.assets == null` described the plugin's
+default rather than a plugin limitation. The APK column is 2 in both rows because the
+application-module packaging below already supplies the bundle; enabling the opt-in adds no
+duplicate entry.
+
+**The decision below stands for now, on narrower grounds than it was taken.** It is what is
+implemented, it is what `verifyProdReleaseComposeResources` guards, and it produces a correct APK.
+Adopting the opt-in instead would let the `androidComposeResources` configuration and the copy step
+be deleted from all eight library modules — a build change that needs verification across the whole
+CI matrix and its own failing test first. That is a separate PR, not an edit to this record.
+
+What this record got wrong is worth keeping visible: the investigation was sound about *what* was
+broken and wrong about *why*, because it stopped at the first explanation that fit the evidence
+instead of looking for the setting that would falsify it.
