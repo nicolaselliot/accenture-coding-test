@@ -69,9 +69,18 @@ public sealed interface SearchPhase {
     /** The search succeeded and matched nothing. Carries no retry — the query needs editing. */
     public data object Empty : SearchPhase
 
-    /** The first page failed. Always retryable, because the user has no other way forward. */
+    /**
+     * The first page failed. Always retryable, because the user has no other way forward.
+     *
+     * [rateLimitWaitMinutes] is how long the failure says to wait, already resolved against the
+     * ViewModel's injected clock — `null` for every failure that implies no wait, and for a rate
+     * limit whose reset header could not be believed. It is carried here rather than derived in the
+     * content because a composable has no clock to derive it from, and reading the real one there
+     * would put an untestable time source in the UI layer.
+     */
     public data class Failed(
         val error: AppError,
+        val rateLimitWaitMinutes: Int? = null,
     ) : SearchPhase
 
     /**
