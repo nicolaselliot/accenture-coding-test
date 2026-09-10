@@ -47,6 +47,14 @@ reduce-motion、数値フォーマット）、そして Swift 62 行です。
 
 <img src="docs/screenshots/android-two-pane-ja.png" width="900">
 
+**Desktop（macOS）— 二画面レイアウトと、システム設定に追従するテーマ。** ウィンドウ幅を広げると
+Android の回転と同じ `WindowSizeClass` の判定で list-detail になります。タイトルバーの
+「GitHub リポジトリ検索」も `:core:designsystem` の同じ文字列バンドルから来ています。
+
+| Desktop — ライト | Desktop — ダーク |
+|:---:|:---:|
+| <img src="docs/screenshots/desktop-two-pane-ja.png" width="440"> | <img src="docs/screenshots/desktop-two-pane-dark-ja.png" width="440"> |
+
 > 詳細画面の「スター 53,376」と「ウォッチャー 1,488」は **別の数字** です。GitHub の
 > `watchers_count` は star のエイリアスであり、両方をそこから読むと全リポジトリで同じ数字が
 > 並びます。本アプリは `subscribers_count` を使用しています。
@@ -584,7 +592,9 @@ CI のジョブ内に限定して復号されます。
 - **テーマ** — Material 3。シード色 `#2D6BE4` から生成した配色を `:core:designsystem` で 1 度だけ
   定義しています。Android 12+ ではダイナミックカラー（上の Android スクリーンショットのボタンが
   iOS と違う色なのはこれです）。フィーチャーコードに色や dp のハードコードはありません。
-- **ダークモード** — システム設定に追従し、手動 override も持ちます。全画面を両方で確認しています。
+- **ダークモード** — **システム設定に追従します。** 全画面を両方で確認しています。`AppTheme` は
+  `ThemeMode` を引数に取れる形にしてありますが、アプリ内に切替 UI は置いていません（下記の
+  トレードオフ 6）。
 - **アダプティブ** — `window-core` の `WindowSizeClass` がレイアウトを決めます。幅 **840dp 以上**で
   list-detail の 2 ペインになります。判断材料は幅のみで、向きではありません — 小型端末の横向きは
   約 640dp で単一ペインのまま、大型端末は約 892dp で分割されます。状態は `rememberSaveable` と
@@ -598,7 +608,8 @@ CI のジョブ内に限定して復号されます。
   用意しています（JVM/Android は `NumberFormat`、iOS は `NSNumberFormatter`）。
 - **マイクロインタラクション** — 一覧 → 詳細の共有要素遷移、`animateItem()`、状態間の
   `AnimatedContent`、シマーのスケルトン、スプリング、Android/iOS のハプティクス。
-  reduce-motion 設定を尊重し、入力をブロックしません。
+  reduce-motion 設定は Android と iOS で尊重します（Desktop は下記のトレードオフ 7）。
+  いずれも入力をブロックしません。
 - **アクセシビリティ** — 全アイコン・画像に content description、タッチターゲット 48dp 以上、
   そして `runComposeUiTest` のスイートが書けるだけのセマンティクス。
 
@@ -659,10 +670,13 @@ CI のジョブ内に限定して復号されます。
 - バージョンはすべて `gradle/libs.versions.toml` の**リテラル**です。動的バージョンは使いません。
 - Gradle Wrapper をコミットし、配布物を `distributionSha256Sum` で、JAR を CI の
   `gradle/actions/wrapper-validation` で固定しています。
-- 依存の検証メタデータ（`gradle/verification-metadata.xml`）は、KMP ビルドではホスト依存
-  （macOS では `kotlin-native-prebuilt-*-macos-aarch64` と `skiko-awt-runtime-macos-arm64` が入る）
-  であるため、CI マトリクス側で生成しています。Gradle の dependency locking を全面採用しなかった
-  理由も同じで、あちらはロック状態がホスト依存になり、再現性の仕組みがマージ衝突生成器に変わります。
+- 依存の検証メタデータ（`gradle/verification-metadata.xml`）は **まだ導入していません。** KMP
+  ビルドではこのファイルがホスト依存になる（macOS では `kotlin-native-prebuilt-*-macos-aarch64` と
+  `skiko-awt-runtime-macos-arm64` が入る）ため、1 台で生成したファイルは他の 2 ランナーで赤くなります。
+  3 ランナーぶんを束ねて生成するワークフロー（`.github/workflows/verification-metadata.yml`）は
+  用意してありますが、`workflow_dispatch` 専用で、出力を取り込む工程はまだありません。
+  Gradle の dependency locking を全面採用しなかった理由も同じで、あちらはロック状態がホスト依存に
+  なり、再現性の仕組みがマージ衝突生成器に変わります。
   [ADR-0004](docs/adr/0004-defer-dependency-verification-to-the-ci-matrix.md)
 
 ---
@@ -746,10 +760,17 @@ GitHub が生成した `Initial commit`（`.gitignore` / `LICENSE` / `README.md`
    レビュアーが入れられる」ことにはならないため、この経路を選んでいます。
 5. **アプリ内に言語切替はありません。** 多言語対応の評価項目はこれを要求しておらず、
    ランタイム override は 3 プラットフォームそれぞれで別の実装を要します。
-6. **本 README のスクリーンショットは Android と iOS のみです。** Desktop は
-   `./gradlew :desktopApp:run` で動作を確認しており、CI では 3 ランナーすべてでビルドと
-   247 件の共有テスト（UI テスト 38 件を含む）が走り、リリースワークフローが `.dmg` と `.msi` を
-   生成します。画像だけが未収録です。
+6. **アプリ内のテーマ切替 UI はありません。** `AppTheme` は `ThemeMode`（`System` / `Light` /
+   `Dark`）を受け取れますが、3 つのエントリポイントはいずれも既定の `System` で呼んでおり、
+   利用者が到達できる切替は存在しません。ダークモードの評価項目はシステム追従で満たしており、
+   切替 UI は状態の保持先（`rememberSaveable` か永続化か）とトップバーの導線を決める独立した
+   変更になるため、この提出物の範囲外としました。
+
+7. **Desktop では reduce-motion を検出できません。** `platformPrefersReducedMotion()` の
+   actual は Android が `ValueAnimator.areAnimatorsEnabled()`、iOS が
+   `UIAccessibilityIsReduceMotionEnabled()` を読みますが、Desktop は `false` を返す実装です。
+   JVM のデスクトップ環境にこの設定を読む横断的な API がなく、OS ごとの分岐が必要になるためです。
+   モーションは Desktop でも常に有効になります。
 
 ---
 
@@ -804,8 +825,8 @@ GitHub が生成した `Initial commit`（`.gitignore` / `LICENSE` / `README.md`
 - **シークレットだけはビルドを待たず、その場で止めています。** [`.claude/`](.claude) の
   `PreToolUse` フックが `local.properties` や署名鍵への書き込みを拒否し、**読み取りも**
   同様に拒否します（`cat` した内容は会話ログに複製されるため、開示という点では同じです）。
-  `Bash` にも掛けているので `cat > local.properties` のような迂回も防ぎ、入力が解釈できない
-  ときは拒否側に倒れます。両方向の自己テストが 49 件あります。
+  `Read` と `Bash` の双方に掛けているので `cat > local.properties` のような迂回も防ぎ、
+  入力が解釈できないときは拒否側に倒れます。両方向の自己テストが 56 件あります。
 - **AI が書いたコードも人間のコードと同じゲートを通っています。** 失敗するテストが先、
   CodeRabbit のレビュー、CI マトリクス、ブランチ保護。
 - **AI に決めさせなかったこと** — 固定バージョンの変更（すべて ADR）、シークレットの取り扱い、
@@ -815,4 +836,4 @@ GitHub が生成した `Initial commit`（`.gitignore` / `LICENSE` / `README.md`
 
 ## ライセンス
 
-[MIT](LICENSE)
+[Apache License 2.0](LICENSE)

@@ -29,7 +29,7 @@
 | Ktor のバージョンアップで挙動が変わったら気付く | `MockEngine` によるレート制限・リトライ・タイムアウトのテスト |
 | フォーマットとコードスメル | ktlint + detekt + Android Lint（CI ゲート） |
 | このプロジェクト固有の欠陥 | `.coderabbit.yaml` の `path_instructions` |
-| シークレットがリポジトリに入らない | `.gitignore` + ビルド時注入 + `PreToolUse` フック（後述、自己テスト 49 件） |
+| シークレットがリポジトリに入らない | `.gitignore` + ビルド時注入 + `PreToolUse` フック（後述、自己テスト 56 件） |
 
 自然言語の指示として残っているのは、機械化できない部分（設計の意図、なぜこの版なのか）だけです。
 
@@ -62,15 +62,17 @@ Git 運用、そして「止まって聞くべき状況」の一覧で構成さ�
 ### シークレット保護フック
 
 規約に「シークレットを書くな」と書いても、それは検知できません。そこで `.claude/settings.json` の
-`PreToolUse` フックとして実装し、`Write` / `Edit` / `NotebookEdit` に加えて **`Bash` にも**
-掛けています。設計上の要点は 4 点です。
+`PreToolUse` フックとして実装し、`Write` / `Edit` / `NotebookEdit` に加えて **`Read` と `Bash`
+にも** 掛けています。設計上の要点は 4 点です。
 
 - **`Bash` を対象に含める。** ファイルツールだけを見るフックは
   `cat > local.properties <<EOF` で迂回できます。ヒアドキュメント、リダイレクト、`dd of=` を
   解釈しない対象範囲は実効性を持ちません。
 - **相対パスも照合する。** 絶対パスのみの照合では素通りします。
 - **読み取りも止める。** `cat local.properties` はシークレットを新たに作りませんが、その内容を
-  会話ログへ複製します。開示という点では書き込みと同じです。
+  会話ログへ複製します。開示という点では書き込みと同じです。ファイル読み取り専用のツール
+  （`Read`）も同じ理由で対象に含めています。`Bash` だけを塞いでも、読み取りツールが素通りでは
+  意味がありません。
 - **失敗時は拒否側に倒す。** 入力が解釈できない、`python3` が無い、スクリプトが無い —
   いずれも block です。エラー時に allow する統制は、信頼されるぶん無いよりも危険です。
 
@@ -78,7 +80,7 @@ Git 運用、そして「止まって聞くべき状況」の一覧で構成さ�
 自身のリポジトリで作業できなくなることを意味します。したがって両方向の自己テストを置いています。
 
 ```bash
-python3 .claude/hooks/guard_secrets_test.py     # 49 件、block と allow の両方向
+python3 .claude/hooks/guard_secrets_test.py     # 56 件、block と allow の両方向
 ```
 
 ---
@@ -119,12 +121,19 @@ composeResources/…core.designsystem.generated.resources/values/strings.commonM
 ktlint も detekt も Android Lint も全テストスイートも `assembleDebug` も緑でした。
 Desktop と iOS は無事だったので、Android で文字列を読む PR が来るまで生き延びていました。
 
-原因は AGP 9 の `com.android.kotlin.multiplatform.library` プラグインに assets パイプラインが
-無いことで、Compose Resources は Android では assets からしか読まれません。
+原因は AGP 9 の `com.android.kotlin.multiplatform.library` プラグインで assets パイプラインが
+**既定で無効**になっていることで、Compose Resources は Android では assets からしか読まれません。
 
 **対応:** CI が検証していたのは「ビルドが通ること」のみでした。成果物の内容を検査するタスク
 （`verifyProdReleaseComposeResources`）を `check` に接続し、リソースバンドルを含まない APK が
 green にならないようにしています。[ADR-0010](adr/0010-package-compose-resources-from-the-application-module.md)
+
+**この項目自体が、後から誤りだと分かった例でもあります。** 当時の調査は「このプラグインには
+assets パイプラインが無い」と結論しましたが、再検証すると `androidResources { enable = true }`
+という opt-in が存在し、有効にすれば AAR に `assets/composeResources/…` が入ります。
+壊れていた対象の特定は正しく、その理由の説明が誤っていました。証拠に合う最初の説明で
+止めてしまい、それを否定しうる設定を探さなかったためです。測定結果と、現行の実装を
+当面維持する判断は ADR-0010 の追記に記録しています。
 
 ### 3-2. もっともらしい設定で CI が 5 倍遅くなった
 
