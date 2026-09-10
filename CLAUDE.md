@@ -82,8 +82,10 @@ pairing to verify in PR1, not an assumption. CMP 1.12.0 is also **64-bit only**.
 
 Declare every version in `gradle/libs.versions.toml`. **No dynamic versions** (`+`, `latest.release`)
 — they make builds non-reproducible and are a supply-chain risk. Every parameter an implementer might
-otherwise guess is pinned in `IMPLEMENTATION_PLAN.md` → *Fixed parameters*. Treat that table as
-binding: a change there is an ADR, not a preference.
+otherwise guess is pinned in `gradle/libs.versions.toml` (versions) or a committed ADR under
+`docs/adr/` (everything else) — never in `IMPLEMENTATION_PLAN.md` alone, since that file is a local
+working document that never reaches a fresh clone. Treat the committed value as binding: a change to
+it is an ADR, not a preference.
 
 Build hygiene, on from PR1:
 - Gradle **configuration cache** and **build cache** enabled.
@@ -92,8 +94,8 @@ Build hygiene, on from PR1:
     compatibility table stops at Kotlin 2.0.21, and the only line built against 2.4.10 is `2.0.0-alpha`
     (which itself targets Gradle 9.6.1 / AGP 9.3.1, both behind our pins). Spike it in PR1. If it does
     not resolve cleanly, the lint gate is **ktlint + Android Lint**, and that is a documented outcome,
-    not a failure — see `IMPLEMENTATION_PLAN.md` → *Known risks*, detekt row. Do not ship an alpha to
-    chase a newer number, and do not block PR1 on it.
+    not a failure — see `docs/adr/0003-lint-gate-ktlint-and-detekt.md` for the recorded decision. Do
+    not ship an alpha to chase a newer number, and do not block PR1 on it.
 - Compose compiler metrics enabled on the dev variant, so stability regressions are visible rather
   than theoretical.
 
@@ -203,7 +205,7 @@ multiple `assert` calls are fine when they verify one behaviour.
 - **On Android these run only as instrumented tests.** They cannot run as unit tests and cannot run
   under Robolectric. The device-test compilation must be created with the AGP 9 device-test
   **builder**, and CI needs an emulator. Desktop and iOS run the same source set with no emulator;
-  see `IMPLEMENTATION_PLAN.md` for which CI job runs which target.
+  see `.github/workflows/ci.yml` for which CI job runs which target.
 
   Verified against AGP 9.4.0 in PR1 — the source set is **`androidDeviceTest`**, not
   `androidInstrumentedTest`, and `withDeviceTestBuilder` is what creates it. `withDeviceTest {}`
@@ -674,7 +676,7 @@ These are hard stops. Do not reason your way past one; surface it and wait.
 ### Hooks
 
 `.claude/settings.json` is wired with a `PreToolUse` guard (`.claude/hooks/guard-secrets.sh`) on
-**`Write|Edit|NotebookEdit` and `Bash`** that **blocks** any agent write to secret or signing
+**`Write|Edit|NotebookEdit`, `Bash`, and `Read`** that **blocks** any agent write to secret or signing
 material: `local.properties`, `secrets.properties`, `signing.properties`, `*.jks`, `*.keystore`,
 `*.p12`, `*.p8`, `*.pem`, `*.key`, `*.cer`, `*.mobileprovision`, `id_rsa*`, `*.xcconfig`, `.env*`,
 `google-services.json`, `GoogleService-Info.plist`, and any `service-account*.json`.
@@ -692,7 +694,7 @@ Four properties that matter more than the pattern list:
 Implementation is `guard_secrets.py` behind the `.sh` wrapper, with a self-test:
 
 ```bash
-python3 .claude/hooks/guard_secrets_test.py     # 49 cases, both directions
+python3 .claude/hooks/guard_secrets_test.py     # 56 cases, both directions
 ```
 
 The self-test exists because this runs on **every** Bash call: a false negative ships a secret, and

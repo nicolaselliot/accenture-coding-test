@@ -73,7 +73,13 @@ PATTERN_FIRST = {"grep", "egrep", "fgrep", "rg", "ag", "awk", "sed", "perl"}
 WRAPPERS = {"sudo", "env", "command", "nohup", "time", "xargs", "nice", "stdbuf"}
 # Shell operators that start a fresh command, so the verb has to be re-read.
 SEPARATORS = {"|", "||", "&&", ";", "&", "(", ")", "{", "}"}
-REDIRECT_TOKENS = {">", ">>", "1>", "2>", "&>", ">|", "1>>", "2>>", "&>>"}
+REDIRECT_TOKENS = {">", ">>", "&>", ">|", "&>>"}
+# Characters shlex must split into their own tokens even with no surrounding
+# whitespace. Plain shlex.split() only breaks on whitespace and quotes, so
+# `local.properties|base64` stays fused into one token that never matches a
+# sensitive basename — this is what lets `SEPARATORS`/`REDIRECT_TOKENS`
+# membership checks below actually see the operator.
+SHELL_OPERATOR_CHARS = "();<>|&{}"
 
 
 def is_sensitive(path):
@@ -84,10 +90,24 @@ def is_sensitive(path):
     return SENSITIVE.match(os.path.basename(cleaned)) is not None
 
 
+def _tokenize(command):
+    """Split `command` into words and shell operators, quotes honoured.
+
+    `shlex.split()` alone only breaks on whitespace and quotes, so an unspaced
+    operator (`local.properties|base64`) stays fused into one token that never
+    matches a sensitive basename. `punctuation_chars` makes the operators in
+    `SHELL_OPERATOR_CHARS` their own tokens even with no surrounding
+    whitespace, while still respecting quoting — `'a|b'` stays one word.
+    """
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=SHELL_OPERATOR_CHARS)
+    lexer.whitespace_split = True
+    return list(lexer)
+
+
 def offending_paths_in_command(command):
     """Sensitive paths this shell command would write to or read from."""
     try:
-        tokens = shlex.split(command, comments=False)
+        tokens = _tokenize(command)
     except ValueError:
         # Unbalanced quoting: we cannot reason about structure, so fall back to a
         # substring scan and block on any mention at all. Fail closed.
@@ -142,13 +162,6 @@ def offending_paths_in_command(command):
             index += 2
             continue
 
-        # `>path` / `2>>path` with no space.
-        glued = re.match(r"^&?\d?>>?\|?(.+)$", token)
-        if glued and is_sensitive(glued.group(1)):
-            hits.append(glued.group(1))
-            index += 1
-            continue
-
         if in_heredoc_body:
             index += 1
             continue
@@ -201,9 +214,14 @@ def main():
 
     offenders = []
 
-    file_path = tool_input.get("file_path") or ""
-    if isinstance(file_path, str) and file_path and is_sensitive(file_path):
-        offenders.append(file_path)
+    # NotebookEdit carries its target under "notebook_path", not "file_path" —
+    # checking only "file_path" let a sensitive notebook path through even
+    # though NotebookEdit is one of the tools the hook is wired to in
+    # .claude/settings.json.
+    for path_key in ("file_path", "notebook_path"):
+        path = tool_input.get(path_key) or ""
+        if isinstance(path, str) and path and is_sensitive(path):
+            offenders.append(path)
 
     command = tool_input.get("command") or ""
     if isinstance(command, str) and command:

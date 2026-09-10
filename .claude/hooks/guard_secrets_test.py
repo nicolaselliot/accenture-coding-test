@@ -33,6 +33,10 @@ CASES = [
     ("Write .env.production", "Write", {"file_path": ".env.production"}, BLOCK),
     ("Write GoogleService-Info.plist", "Write", {"file_path": "iosApp/GoogleService-Info.plist"}, BLOCK),
     ("Edit id_rsa", "Edit", {"file_path": "/home/u/.ssh/id_rsa"}, BLOCK),
+    ("NotebookEdit sensitive notebook_path", "NotebookEdit",
+     {"notebook_path": "/x/local.properties"}, BLOCK),
+    ("NotebookEdit ordinary notebook", "NotebookEdit",
+     {"notebook_path": "analysis/notebook.ipynb"}, ALLOW),
     ("Write ordinary Kotlin file", "Write", {"file_path": "domain/src/Repo.kt"}, ALLOW),
     ("Write gradle catalog", "Write", {"file_path": "gradle/libs.versions.toml"}, ALLOW),
     ("Write README.pemx (not a .pem)", "Write", {"file_path": "README.pemx"}, ALLOW),
@@ -64,6 +68,18 @@ CASES = [
     ("bash base64 a keystore", "Bash", {"command": "base64 app/upload.jks"}, BLOCK),
     ("bash keytool on a keystore", "Bash", {"command": "keytool -list -keystore app/upload.jks"}, BLOCK),
     ("bash git add a secret", "Bash", {"command": "git add local.properties"}, BLOCK),
+    # shlex.split() alone glues an unspaced operator onto the filename
+    # (`local.properties|base64` stays one token), so a naive reader/writer
+    # check never sees a clean basename to match against. These prove the
+    # tokenizer itself splits on the operator, not just on whitespace.
+    ("bash pipe glued to reader, no space", "Bash",
+     {"command": "cat local.properties|base64"}, BLOCK),
+    ("bash semicolon glued to reader, no space", "Bash",
+     {"command": "cat local.properties;true"}, BLOCK),
+    ("bash and-and glued to reader, no space", "Bash",
+     {"command": "cat local.properties&&true"}, BLOCK),
+    ("bash redirect glued with fd prefix, no space", "Bash",
+     {"command": "cmd 2>>local.properties"}, BLOCK),
 
     # --- bash: must stay allowed ------------------------------------------
     # PR1 has to put these names *into* .gitignore. If the guard blocks that, it
@@ -86,6 +102,21 @@ CASES = [
     # --- fail-closed behaviour --------------------------------------------
     ("no tool_input", "Bash", {}, ALLOW),
 ]
+
+# Tools the hook must actually be invoked for. Listing "NotebookEdit" in
+# guard_secrets.py's own docstring and testing it above is worthless if
+# .claude/settings.json never fires the hook for it in the first place.
+REQUIRED_MATCHER_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "Read"}
+SETTINGS = os.path.join(HERE, os.pardir, "settings.json")
+
+
+def missing_matcher_tools():
+    """Tools in REQUIRED_MATCHER_TOOLS that settings.json does not wire the guard to."""
+    with open(SETTINGS, encoding="utf-8") as handle:
+        settings = json.load(handle)
+    matcher = settings["hooks"]["PreToolUse"][0]["matcher"]
+    covered = set(matcher.split("|"))
+    return REQUIRED_MATCHER_TOOLS - covered
 
 
 def run(tool_name, tool_input):
@@ -116,7 +147,13 @@ def main():
     if proc.returncode != BLOCK:
         failures.append(("empty stdin fails closed", BLOCK, proc.returncode))
 
-    total = len(CASES) + 2
+    missing = missing_matcher_tools()
+    if missing:
+        failures.append((
+            "settings.json matcher covers %s" % ", ".join(sorted(missing)), 0, len(missing)
+        ))
+
+    total = len(CASES) + 3
     if failures:
         for label, expected, actual in failures:
             print("FAIL  %-45s expected %d, got %d" % (label, expected, actual))
