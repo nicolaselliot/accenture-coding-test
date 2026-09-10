@@ -78,6 +78,14 @@ iosApp/iosApp.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plis
 out/
 
 # =================================================================================================
+# Claude Code
+# =================================================================================================
+# `.claude/settings.json` and `.claude/hooks/` are committed deliberately: the secret guard is a
+# review gate, and the assignment offers credit for submitting the prompts that shaped the work.
+# The local override is per-developer and carries machine-specific paths, so it stays out.
+.claude/settings.local.json
+
+# =================================================================================================
 # OS
 # =================================================================================================
 .DS_Store
