@@ -86,14 +86,17 @@ UI は 3 プラットフォームで Compose Multiplatform を共有しており
 
 ## インストール — 配布ビルドを試す
 
-**最新リリース: [v1.0.0](https://github.com/nicolaselliot/accenture-coding-test/releases/tag/v1.0.0)**
+**最新リリース: [Releases の最新版](https://github.com/nicolaselliot/accenture-coding-test/releases/latest)**
 — 3 プラットフォーム分の成果物が揃っています。
 
-| 成果物 | サイズ | 入手先 |
+`latest` を指しているのは、版番号を README に焼き込むとリリースのたびに古くなるためです。
+`<version>` はタグから `v` を除いたもので、成果物のファイル名がそのまま名乗ります。
+
+| 成果物 | 目安のサイズ | 入手先 |
 |---|---:|---|
-| `androidApp-prod-release.apk` | 1.8 MB | GitHub Releases / Firebase App Distribution |
-| `GitHubSearch-1.0.0.msi`（Windows） | 66 MB | GitHub Releases |
-| `GitHubSearch-1.0.0.dmg`（macOS） | 76 MB | GitHub Releases |
+| `androidApp-prod-release.apk` | 約 2 MB | GitHub Releases / Firebase App Distribution |
+| `GitHubSearch-<version>.msi`（Windows） | 約 70 MB | GitHub Releases |
+| `GitHubSearch-<version>.dmg`（macOS） | 約 80 MB | GitHub Releases |
 | `.ipa`（iOS, ad-hoc） | — | Firebase App Distribution のみ（下記の理由により Release には置きません） |
 
 Firebase へのアップロードは完了しています。テスターの参加経路は次節のとおりです。
@@ -129,7 +132,7 @@ Android は下記 **B** の経路であれば招待リンクなしで動作を�
 
 **B. GitHub Releases からサイドロード（リンク・アカウント不要・最短）**
 
-1. Releases から **`androidApp-prod-release.apk`**（1.8 MB）をダウンロードします。
+1. Releases から **`androidApp-prod-release.apk`**（約 2 MB）をダウンロードします。
 2. 端末で「提供元不明のアプリ」のインストールを許可します
    （設定 → アプリ → 特別なアプリアクセス → 不明なアプリのインストール）。
 3. APK を開いてインストールします。
@@ -164,7 +167,7 @@ iOS 端末に入れる」ことはできません。** この制約が両経路�
 
 ### Windows — GitHub Releases の `.msi`
 
-1. Releases から **`GitHubSearch-1.0.0.msi`**（66 MB）をダウンロードします。
+1. Releases から **`GitHubSearch-<version>.msi`**（約 70 MB）をダウンロードします。
    ファイル名の版はタグから `v` を除いたものです。
 2. 実行すると **SmartScreen が警告を表示します。** インストーラに署名していないためです。
    「詳細情報」→「実行」で続行します。
@@ -175,7 +178,7 @@ iOS 端末に入れる」ことはできません。** この制約が両経路�
 
 ### macOS — GitHub Releases の `.dmg`
 
-1. Releases から **`GitHubSearch-1.0.0.dmg`**（76 MB）をダウンロードして開き、
+1. Releases から **`GitHubSearch-<version>.dmg`**（約 80 MB）をダウンロードして開き、
    アプリケーションフォルダにコピーします。
 2. 初回起動は **Gatekeeper に拒否されます。** アプリを右クリック →「開く」→「開く」、
    または システム設定 → プライバシーとセキュリティ →「このまま開く」で続行します。
