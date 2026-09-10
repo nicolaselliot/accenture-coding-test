@@ -1,7 +1,12 @@
 # ADR-0010: Package Compose resources from the application module
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0014](0014-enable-the-library-android-resources-pipeline.md).
 - **Date:** 2026-09-08
+
+> **Superseded 2026-09-10.** The crash described below was real and the fix worked, but its premise
+> was wrong: the KMP library plugin's android resources pipeline is not absent, it ships disabled,
+> and `androidResources.enable = true` turns it on. The workaround this record describes has been
+> deleted. Kept unedited below, because the wrong turn is the useful part of the history.
 
 ## Context
 

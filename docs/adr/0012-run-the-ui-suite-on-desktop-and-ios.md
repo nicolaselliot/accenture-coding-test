@@ -37,6 +37,13 @@ assets; a library module's self-instrumenting test APK has no such counterpart. 
 to put the bundle, and every test that reads a string would fail on the device even if the build
 were unblocked.
 
+> **Note, 2026-09-10.** The probe above ran with the library plugin's android resources pipeline
+> disabled, which was its default and which [ADR-0014](0014-enable-the-library-android-resources-pipeline.md)
+> has since turned on. Whether the device test component gains an assets container along with the
+> main variant has **not** been re-probed — it needs an emulator this project's CI deliberately does
+> not have. Blocker one is therefore unverified rather than established. The decision below is
+> unaffected: blocker two is independent and still stands, and one blocker is enough.
+
 **Two: D8 refuses to dex the test tree at `minSdk` 26.** Forcing the APK to build anyway hits this:
 
 ```
