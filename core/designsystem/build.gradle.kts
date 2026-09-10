@@ -49,44 +49,6 @@ compose.resources {
     packageOfResClass = resourcePackage
 }
 
-// The bundle, laid out the way the Android runtime looks for it, published for :androidApp to
-// package as assets.
-//
-// This module cannot deliver them itself. Compose Resources are read from `assets` on Android, and
-// AGP 9's `com.android.kotlin.multiplatform.library` plugin has no assets pipeline: its variants
-// report `sources.assets == null` and its AAR contains no `assets/` entry. The Compose plugin's own
-// `copyAndroidMainComposeResourcesToAndroidAssets` task is registered anyway, but the null means it
-// never gets an output directory, so it is silently skipped — a green build, a complete APK, and a
-// MissingResourceException on the first screen. See docs/adr/0010.
-//
-// The re-layout belongs here rather than in the consumer: `preparedResources` has no package
-// segment, and the package is this module's to know.
-val androidComposeAssets =
-    tasks.register<Sync>("androidComposeAssets") {
-        group = "compose resources"
-        description = "Lays this module's Compose resources out the way an Android APK carries them."
-
-        // The published directory is the assets *root*, so the `composeResources/` prefix has to
-        // be part of the layout rather than part of the path it is published from — the consumer
-        // copies this directory's contents straight into `assets/`, and a prefix left implicit in
-        // the publication path is simply lost there.
-        from(tasks.named("prepareComposeResourcesTaskForCommonMain")) {
-            into("composeResources/$resourcePackage")
-        }
-        into(layout.buildDirectory.dir("androidComposeAssets"))
-    }
-
-// A plain named configuration with no attributes, consumed by path rather than matched: this module
-// publishes several Kotlin/Android variants and attribute matching between them is exactly the
-// ambiguity a one-off artifact like this does not need to take part in.
-val androidComposeResources: Configuration by
-    configurations.creating {
-        isCanBeConsumed = true
-        isCanBeResolved = false
-    }
-
-artifacts.add(androidComposeResources.name, androidComposeAssets)
-
 // The base bundle is the contract every locale has to meet. A key missing from a translation does
 // not fail the build on its own — Compose Resources silently serves the English string, which is
 // the worst outcome because it looks intentional. This turns that into a build failure, so the next

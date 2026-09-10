@@ -42,6 +42,17 @@ kotlin {
         compileSdk = sdk("compileSdk")
         minSdk = sdk("minSdk")
 
+        // Compose Resources are read from `assets` on Android, and this plugin ships its android
+        // resources pipeline **disabled**. Left off, a shared module's variants report
+        // `sources.assets == null`, the AAR carries no `assets/` entry, and the Compose plugin's own
+        // copy task is skipped in silence — a green build, a complete APK, and a
+        // MissingResourceException on the first screen a string is read.
+        //
+        // One line, on every library module rather than only the one that owns the bundle: which
+        // module holds resources is a fact about the code, and a convention that has to be
+        // remembered when that changes is one that will not be. See docs/adr/0014.
+        androidResources.enable = true
+
         // Without this, `commonTest` is compiled for the desktop and iOS targets but silently
         // skipped for Android — the suite passes while never having run on the platform the app
         // primarily ships to. AGP warns about it, but a warning in a 600-task build is not a gate.

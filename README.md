@@ -707,10 +707,11 @@ CI のジョブ内に限定して復号されます。
 | [0007](docs/adr/0007-drop-the-intel-ios-simulator-target.md) | Intel 版 iOS シミュレータターゲット（`iosX64`）を落とす |
 | [0008](docs/adr/0008-seed-the-material-3-fixed-colour-roles.md) | Material 3 の `*Fixed` カラーロールをシードする |
 | [0009](docs/adr/0009-build-the-adaptive-layout-on-stable-navigation3.md) | アダプティブレイアウトを安定版 Navigation 3 の上に作る |
-| [0010](docs/adr/0010-package-compose-resources-from-the-application-module.md) | Compose リソースをアプリケーションモジュールから梱包する |
+| [0010](docs/adr/0010-package-compose-resources-from-the-application-module.md) | Compose リソースをアプリケーションモジュールから梱包する（**0014 で置き換え**） |
 | [0011](docs/adr/0011-select-one-build-flavor-per-invocation.md) | フレーバーは Gradle 実行単位で 1 つ選ぶ |
 | [0012](docs/adr/0012-run-the-ui-suite-on-desktop-and-ios.md) | UI スイートは Desktop と iOS で走らせ、Android device test は採らない |
 | [0013](docs/adr/0013-distribute-from-a-separate-tag-triggered-workflow.md) | 配布はタグ起動の別ワークフローから行う |
+| [0014](docs/adr/0014-enable-the-library-android-resources-pipeline.md) | ライブラリモジュールの Android リソースパイプラインを有効にし、0010 の回避策を削除する |
 
 ---
 
