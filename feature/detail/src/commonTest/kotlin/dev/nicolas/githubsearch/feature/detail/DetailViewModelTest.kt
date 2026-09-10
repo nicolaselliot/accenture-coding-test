@@ -144,15 +144,18 @@ class DetailViewModelTest {
             val port = FakeGithubRepository(detailResult = Outcome.Failure(AppError.RateLimited(resetAt)))
 
             val viewModel = viewModel(port)
-            advanceUntilIdle()
 
-            // Ninety seconds rounds up to two minutes. It matters more here than on the search
-            // screen: this endpoint allows sixty requests an hour unauthenticated, so the honest
-            // answer can be most of an hour and "wait a moment" would understate it badly.
-            assertEquals(
-                DetailPhase.Failed(AppError.RateLimited(resetAt), rateLimitWaitMinutes = 2),
-                viewModel.state.value.phase,
-            )
+            viewModel.state.test {
+                assertEquals(DetailPhase.Loading, awaitItem().phase)
+
+                // Ninety seconds rounds up to two minutes. It matters more here than on the search
+                // screen: this endpoint allows sixty requests an hour unauthenticated, so the honest
+                // answer can be most of an hour and "wait a moment" would understate it badly.
+                assertEquals(
+                    DetailPhase.Failed(AppError.RateLimited(resetAt), rateLimitWaitMinutes = 2),
+                    awaitItem().phase,
+                )
+            }
         }
 
     @Test
@@ -161,13 +164,16 @@ class DetailViewModelTest {
             val port = FakeGithubRepository(detailResult = Outcome.Failure(AppError.Network))
 
             val viewModel = viewModel(port)
-            advanceUntilIdle()
 
-            // Only a rate limit knows when it lifts; a wait on anything else would be invented.
-            assertEquals(
-                DetailPhase.Failed(AppError.Network, rateLimitWaitMinutes = null),
-                viewModel.state.value.phase,
-            )
+            viewModel.state.test {
+                assertEquals(DetailPhase.Loading, awaitItem().phase)
+
+                // Only a rate limit knows when it lifts; a wait on anything else would be invented.
+                assertEquals(
+                    DetailPhase.Failed(AppError.Network, rateLimitWaitMinutes = null),
+                    awaitItem().phase,
+                )
+            }
         }
 
     @Test
@@ -177,16 +183,19 @@ class DetailViewModelTest {
             val clock = FakeClock(NOW)
             val port = FakeGithubRepository(detailResult = Outcome.Failure(AppError.RateLimited(resetAt)))
             val viewModel = viewModel(port, clock = clock)
-            advanceUntilIdle()
-            assertEquals(30, (viewModel.state.value.phase as DetailPhase.Failed).rateLimitWaitMinutes)
 
-            clock.advanceBy(25.minutes)
-            viewModel.onRetry()
-            advanceUntilIdle()
+            viewModel.state.test {
+                assertEquals(DetailPhase.Loading, awaitItem().phase)
+                assertEquals(30, (awaitItem().phase as DetailPhase.Failed).rateLimitWaitMinutes)
 
-            // An hourly budget is long enough that a user really can sit on this screen while it
-            // ticks down. A wait computed once would still promise thirty minutes.
-            assertEquals(5, (viewModel.state.value.phase as DetailPhase.Failed).rateLimitWaitMinutes)
+                clock.advanceBy(25.minutes)
+                viewModel.onRetry()
+
+                assertEquals(DetailPhase.Loading, awaitItem().phase)
+                // An hourly budget is long enough that a user really can sit on this screen while it
+                // ticks down. A wait computed once would still promise thirty minutes.
+                assertEquals(5, (awaitItem().phase as DetailPhase.Failed).rateLimitWaitMinutes)
+            }
         }
 
     @Test

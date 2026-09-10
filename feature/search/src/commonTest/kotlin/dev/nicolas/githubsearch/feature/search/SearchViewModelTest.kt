@@ -129,20 +129,26 @@ class SearchViewModelTest {
             val port = FakeGithubRepository(searchResult = Outcome.Failure(AppError.RateLimited(resetAt)))
             val viewModel = viewModel(port)
 
-            viewModel.onQueryChange("kotlin")
-            viewModel.onSubmit()
-            advanceUntilIdle()
+            viewModel.state.test {
+                assertEquals(SearchPhase.Idle, awaitItem().phase)
 
-            // A real instant, not a generic message, so the screen can render a countdown. Read
-            // off a fake clock, because asserting against the real one compares instants that
-            // differ by however long the test took.
-            //
-            // The wait travels beside it, resolved here rather than in the content: forty-two
-            // seconds rounds up to one minute, and the composable has no clock to work that out.
-            assertEquals(
-                SearchPhase.Failed(AppError.RateLimited(resetAt), rateLimitWaitMinutes = 1),
-                viewModel.state.value.phase,
-            )
+                viewModel.onQueryChange("kotlin")
+                assertEquals(SearchPhase.Idle, awaitItem().phase)
+
+                viewModel.onSubmit()
+                assertEquals(SearchPhase.Loading, awaitItem().phase)
+
+                // A real instant, not a generic message, so the screen can render a countdown. Read
+                // off a fake clock, because asserting against the real one compares instants that
+                // differ by however long the test took.
+                //
+                // The wait travels beside it, resolved here rather than in the content: forty-two
+                // seconds rounds up to one minute, and the composable has no clock to work that out.
+                assertEquals(
+                    SearchPhase.Failed(AppError.RateLimited(resetAt), rateLimitWaitMinutes = 1),
+                    awaitItem().phase,
+                )
+            }
         }
 
     @Test
@@ -151,16 +157,22 @@ class SearchViewModelTest {
             val port = FakeGithubRepository(searchResult = Outcome.Failure(AppError.Network))
             val viewModel = viewModel(port)
 
-            viewModel.onQueryChange("kotlin")
-            viewModel.onSubmit()
-            advanceUntilIdle()
+            viewModel.state.test {
+                assertEquals(SearchPhase.Idle, awaitItem().phase)
 
-            // Only a rate limit knows when it lifts. A wait attached to a dropped connection would
-            // be an invented number, and the screen would tell the user to wait for nothing.
-            assertEquals(
-                SearchPhase.Failed(AppError.Network, rateLimitWaitMinutes = null),
-                viewModel.state.value.phase,
-            )
+                viewModel.onQueryChange("kotlin")
+                assertEquals(SearchPhase.Idle, awaitItem().phase)
+
+                viewModel.onSubmit()
+                assertEquals(SearchPhase.Loading, awaitItem().phase)
+
+                // Only a rate limit knows when it lifts. A wait attached to a dropped connection would
+                // be an invented number, and the screen would tell the user to wait for nothing.
+                assertEquals(
+                    SearchPhase.Failed(AppError.Network, rateLimitWaitMinutes = null),
+                    awaitItem().phase,
+                )
+            }
         }
 
     @Test
@@ -171,19 +183,25 @@ class SearchViewModelTest {
             val port = FakeGithubRepository(searchResult = Outcome.Failure(AppError.RateLimited(resetAt)))
             val viewModel = viewModel(port, clock = clock)
 
-            viewModel.onQueryChange("kotlin")
-            viewModel.onSubmit()
-            advanceUntilIdle()
-            assertEquals(10, (viewModel.state.value.phase as SearchPhase.Failed).rateLimitWaitMinutes)
+            viewModel.state.test {
+                assertEquals(SearchPhase.Idle, awaitItem().phase)
 
-            clock.advanceBy(6.minutes)
-            viewModel.onRetry()
-            advanceUntilIdle()
+                viewModel.onQueryChange("kotlin")
+                assertEquals(SearchPhase.Idle, awaitItem().phase)
 
-            // The same reset instant, six minutes later, is four minutes away rather than ten. A
-            // wait computed once and carried forward would still promise ten, so the number on
-            // screen would grow staler the longer the user stayed.
-            assertEquals(4, (viewModel.state.value.phase as SearchPhase.Failed).rateLimitWaitMinutes)
+                viewModel.onSubmit()
+                assertEquals(SearchPhase.Loading, awaitItem().phase)
+                assertEquals(10, (awaitItem().phase as SearchPhase.Failed).rateLimitWaitMinutes)
+
+                clock.advanceBy(6.minutes)
+                viewModel.onRetry()
+
+                assertEquals(SearchPhase.Loading, awaitItem().phase)
+                // The same reset instant, six minutes later, is four minutes away rather than ten. A
+                // wait computed once and carried forward would still promise ten, so the number on
+                // screen would grow staler the longer the user stayed.
+                assertEquals(4, (awaitItem().phase as SearchPhase.Failed).rateLimitWaitMinutes)
+            }
         }
 
     @Test
