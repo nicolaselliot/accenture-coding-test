@@ -9,7 +9,15 @@
 -->
 <resources>
     <!-- Shared. -->
-    <string name="app_name">GitHub 検索</string>
+    <!--
+      Must stay identical to androidApp's res/values-ja/strings.xml, which supplies the Android
+      launcher label: the manifest resolves android:label through the platform resource system,
+      before any Compose resource exists, so the name is necessarily stated twice. This copy is
+      what every other surface reads — including the Desktop window title via `appName()`. The two
+      drifted once, and `verifyTranslations` cannot see it: that task compares this bundle against
+      values/ within this module, not one key's value across modules.
+    -->
+    <string name="app_name">GitHub リポジトリ検索</string>
     <string name="action_retry">再試行</string>
     <string name="owner_avatar">%1$s のアイコン</string>
     <string name="language_unknown">言語は検出されていません</string>
