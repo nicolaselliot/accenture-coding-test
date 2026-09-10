@@ -245,25 +245,26 @@ class SearchContentTest {
 
     @OptIn(ExperimentalTestApi::class)
     @Test
-    fun `the IME search action is refused below the minimum query length`() =
+    fun `the IME search action is refused for a blank query`() =
         runComposeUiTest {
-            show(SearchUiState(query = "k"))
+            show(SearchUiState(query = "   "))
 
             onNode(hasSetTextAction()).performImeAction()
 
             // The button can be disabled; the IME action cannot, so the guard is a condition
             // inside the keyboard action and this is the only thing asserting it. Without it the
-            // primary path on a phone spends a request out of ten a minute on a one-letter query.
+            // primary path on a phone sends a query GitHub answers with a 422.
             assertEquals(0, submits)
         }
 
     @OptIn(ExperimentalTestApi::class)
     @Test
-    fun `the submit affordance is refused below the minimum query length`() =
+    fun `the submit affordance is refused for a blank query`() =
         runComposeUiTest {
-            val chrome = show(SearchUiState(query = "k"))
+            val chrome = show(SearchUiState(query = "   "))
 
-            // A one-character query is never what the user meant, and it costs a request.
+            // Blank is the only query the control refuses. A single character is a keyword the
+            // assignment allows, and enabling it is the point of docs/adr/0015.
             onNode(hasClickAction() and hasText(chrome.searchAction)).assertIsNotEnabled()
         }
 
@@ -271,7 +272,9 @@ class SearchContentTest {
     @Test
     fun `an enabled submit affordance follows a searchable query`() =
         runComposeUiTest {
-            val chrome = show(SearchUiState(query = "ko"))
+            // One character, deliberately: this is the UI half of docs/adr/0015, and the shortest
+            // keyword the assignment allows is exactly the one the old floor refused.
+            val chrome = show(SearchUiState(query = "k"))
 
             onNode(hasClickAction() and hasText(chrome.searchAction)).assertIsEnabled()
         }

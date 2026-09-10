@@ -105,21 +105,39 @@ class SearchViewModelTest {
         }
 
     @Test
-    fun `a query below the minimum length is not submitted`() =
+    fun `a blank query is not submitted`() =
         runTest {
             val port = FakeGithubRepository()
             val viewModel = viewModel(port)
 
-            viewModel.onQueryChange(" a ")
+            viewModel.onQueryChange("   ")
             viewModel.onSubmit()
             advanceUntilIdle()
 
-            // " a " is three characters but trims to one. The use case would refuse it and return
-            // an empty success, which the screen would render as "nothing matched" — telling the
-            // user their search failed when it was never sent. Both sides use isSearchable.
+            // "   " is three characters but trims to nothing. The use case would refuse it and
+            // return an empty success, which the screen would render as "nothing matched" —
+            // telling the user their search failed when it was never sent. Both sides use
+            // isSearchable.
             assertTrue(port.searches.isEmpty())
             assertEquals(SearchPhase.Idle, viewModel.state.value.phase)
             assertFalse(viewModel.state.value.isSubmitEnabled)
+        }
+
+    @Test
+    fun `a single character query is submitted`() =
+        runTest {
+            val port = FakeGithubRepository()
+            val viewModel = viewModel(port)
+
+            viewModel.onQueryChange("k")
+            viewModel.onSubmit()
+            advanceUntilIdle()
+
+            // The ViewModel half of docs/adr/0015. It gated submit on isSearchable already, so the
+            // floor moving in :domain is what re-enables this path — and this asserts the request
+            // actually leaves rather than only that the control is enabled.
+            assertEquals(listOf("k" to 1), port.searches)
+            assertTrue(viewModel.state.value.isSubmitEnabled)
         }
 
     @Test

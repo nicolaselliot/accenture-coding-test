@@ -111,14 +111,16 @@ public class SearchViewModel(
     private var requestId: SearchRequestId = SearchRequestId(0)
 
     init {
-        // A restored query means the process was killed while the user had results on screen.
-        // Re-issuing the search is what actually restores that screen — keeping the text but not
-        // the results leaves the user reading their own query above an empty list, having to press
-        // search again to get back where they were.
+        // The query is saved on every keystroke, so what is restored here is whatever the field
+        // held when the process was killed — text that was submitted, and text that never was.
+        // Both are searched, and the second case is the deliberate part: the field is repopulated
+        // either way, and a keyword sitting above an empty list is the state this is meant to
+        // avoid. The user named that keyword by typing it, so answering it is what makes the
+        // restore a restore rather than a half-drawn screen.
         //
-        // It costs one request against a ten-per-minute budget, which is affordable because a
-        // ViewModel is only rebuilt from saved state after process death. Rotation does not reach
-        // here: the instance survives it.
+        // The cost is bounded at one request against a ten-per-minute budget, and it is only paid
+        // after process death — nothing else rebuilds a ViewModel from saved state. Rotation does
+        // not reach here: the instance survives it.
         if (isSearchable(restoredQuery)) {
             load(restoredQuery, FIRST_SEARCH_PAGE)
         }
