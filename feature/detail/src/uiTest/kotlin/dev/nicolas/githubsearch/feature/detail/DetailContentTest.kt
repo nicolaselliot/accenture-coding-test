@@ -228,6 +228,8 @@ class DetailContentTest {
             // tapping retry until the screen looks broken.
             onNodeWithText(chrome.rateLimitedWait).assertIsDisplayed()
             onNodeWithText(chrome.retry).assertIsDisplayed()
+            // A renderer that shows both messages would pass the assertion above on its own.
+            onAllNodesWithText(chrome.rateLimited).assertCountEquals(0)
         }
 
     @OptIn(ExperimentalTestApi::class)
@@ -240,6 +242,8 @@ class DetailContentTest {
 
             onNodeWithText(chrome.rateLimited).assertIsDisplayed()
             onNodeWithText(chrome.retry).assertIsDisplayed()
+            // A renderer that shows both messages would pass the assertion above on its own.
+            onAllNodesWithText(chrome.rateLimitedWait).assertCountEquals(0)
         }
 
     @OptIn(ExperimentalTestApi::class)

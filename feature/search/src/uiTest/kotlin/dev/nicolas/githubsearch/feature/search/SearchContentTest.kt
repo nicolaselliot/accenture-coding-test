@@ -314,6 +314,8 @@ class SearchContentTest {
             // without a token reaches first.
             onNodeWithText(chrome.rateLimitedWait).assertIsDisplayed()
             onNodeWithText(chrome.retry).assertIsDisplayed()
+            // A renderer that shows both messages would pass the assertion above on its own.
+            onAllNodesWithText(chrome.rateLimited).assertCountEquals(0)
         }
 
     @OptIn(ExperimentalTestApi::class)
@@ -328,6 +330,8 @@ class SearchContentTest {
             // rather than to a number the screen invented.
             onNodeWithText(chrome.rateLimited).assertIsDisplayed()
             onNodeWithText(chrome.retry).assertIsDisplayed()
+            // A renderer that shows both messages would pass the assertion above on its own.
+            onAllNodesWithText(chrome.rateLimitedWait).assertCountEquals(0)
         }
 
     @OptIn(ExperimentalTestApi::class)
