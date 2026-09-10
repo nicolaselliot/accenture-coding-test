@@ -351,6 +351,12 @@ jobs:
           # A random password for a keychain that exists for one job; it is never persisted.
           keychain_password=$(uuidgen)
           security create-keychain -p "$keychain_password" "$keychain"
+          # Exported before anything is imported into it, because every line below can fail — a
+          # malformed profile makes `plutil -extract Name` exit non-zero — and the cleanup step
+          # deletes only what this variable names. Exported last, an early exit left the private
+          # key in the user search list for the rest of the job, including the Firebase CLI's npm
+          # tree, while `security delete-keychain ""` silently did nothing.
+          echo "SIGNING_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
           # 21600s is GitHub's own documented value, and it is the job ceiling rather than a
           # guess: the idle timer runs from the unlock below and is *not* reset by build activity,
           # so anything shorter than the whole job races the release link and the archive's
@@ -384,7 +390,6 @@ jobs:
           name=$(plutil -extract Name raw -o - "$RUNNER_TEMP/profile.plist")
           test -n "$name" || { echo "::error::Could not read the profile's name."; exit 1; }
           echo "PROFILE_NAME=$name" >> "$GITHUB_ENV"
-          echo "SIGNING_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
           # The name is not a secret; the profile it came from is already public in every build.
           echo "Using provisioning profile: $name"
 
@@ -667,8 +672,14 @@ jobs:
   # fix — where publishing first and uploading second leaves a notified release with missing
   # downloads, and the `.msi` is the leg most likely to fail on a runner image change.
   #
-  # Both artifact jobs must succeed, deliberately: a release advertising three downloads and
-  # carrying two is worse than one that arrived a day later.
+  # The two jobs that upload assets must succeed, deliberately: a release advertising three
+  # downloads and carrying two is worse than one that arrived a day later.
+  #
+  # `ios` is deliberately not among them, and this is the channel matrix rather than an omission:
+  # it holds `contents: read`, contributes no asset here, and distributes through Firebase
+  # (docs/adr/0013). A failed archive must not hold back a Release whose three downloads are all
+  # present — testers simply do not get a new iOS build, which the Firebase channel reports on its
+  # own.
   publish-release:
     name: Publish the release
     needs: [android, desktop]
