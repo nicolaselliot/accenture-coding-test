@@ -22,7 +22,17 @@
     <string name="language_unknown">Language not detected</string>
 
     <string name="error_network">No connection. Check your network and try again.</string>
+    <!--
+      Two rate-limit messages, chosen by whether a wait could be worked out. The one with a number
+      is the normal case; the vague one is the fallback for a reset header that was missing, absurd
+      or further out than any real GitHub budget.
+
+      "min." rather than "minutes" so one string covers 1 and 60. Compose Resources has a plurals
+      API, but `verifyTranslations` only reads <string> elements, so a plural here would be a
+      translation hole the build gate cannot see.
+    -->
     <string name="error_rate_limited">GitHub\'s rate limit was reached. Wait a moment and try again.</string>
+    <string name="error_rate_limited_wait">GitHub\'s rate limit was reached. Try again in about %1$s min.</string>
     <string name="error_not_found">That repository could not be found.</string>
     <string name="error_unauthorized">The configured access token was rejected.</string>
     <string name="error_unknown">Something went wrong. Try again.</string>

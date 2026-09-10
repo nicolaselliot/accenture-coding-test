@@ -23,7 +23,12 @@
     <string name="language_unknown">言語は検出されていません</string>
 
     <string name="error_network">接続できません。ネットワークを確認して再試行してください。</string>
+    <!--
+      レート制限のメッセージは 2 種類。待ち時間を算出できたときは分数付き、ヘッダが欠落・不正・
+      GitHub のどの予算よりも先の時刻だったときは曖昧な方に縮退します。
+    -->
     <string name="error_rate_limited">GitHub のレート制限に達しました。しばらく待ってから再試行してください。</string>
+    <string name="error_rate_limited_wait">GitHub のレート制限に達しました。約 %1$s 分後に再試行してください。</string>
     <string name="error_not_found">リポジトリが見つかりませんでした。</string>
     <string name="error_unauthorized">設定されているアクセストークンが拒否されました。</string>
     <string name="error_unknown">問題が発生しました。再試行してください。</string>
