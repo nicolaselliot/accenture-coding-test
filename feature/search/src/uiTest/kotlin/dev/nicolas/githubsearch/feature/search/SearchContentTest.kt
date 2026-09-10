@@ -32,6 +32,8 @@ import dev.nicolas.githubsearch.core.common.AppError
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.Res
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.action_retry
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_network
+import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_rate_limited
+import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_rate_limited_wait
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.language_unknown
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.owner_avatar
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.search_action
@@ -52,6 +54,18 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.time.Instant
+
+/**
+ * The wait a rate-limited failure reports, in minutes.
+ *
+ * The content is handed this already resolved, so the value is arbitrary here — working it out
+ * from an instant is `SearchViewModel`'s job, and is tested there and in `:core:common`.
+ */
+private const val WAIT_MINUTES = 5
+
+/** Only present because [AppError.RateLimited] requires one; nothing on screen reads it. */
+private val RESET_AT = Instant.fromEpochSeconds(1_788_000_000)
 
 /**
  * What the search screen draws, and what it reports when it is touched.
@@ -289,6 +303,39 @@ class SearchContentTest {
 
     @OptIn(ExperimentalTestApi::class)
     @Test
+    fun `a rate limited search says how long to wait`() =
+        runComposeUiTest {
+            val phase = SearchPhase.Failed(AppError.RateLimited(RESET_AT), rateLimitWaitMinutes = WAIT_MINUTES)
+
+            val chrome = show(SearchUiState(query = "kotlin", phase = phase))
+
+            // The number is the point. "Wait a moment" is indistinguishable from a transient
+            // failure, and at ten searches a minute unauthenticated this is the state a reviewer
+            // without a token reaches first.
+            onNodeWithText(chrome.rateLimitedWait).assertIsDisplayed()
+            onNodeWithText(chrome.retry).assertIsDisplayed()
+            // A renderer that shows both messages would pass the assertion above on its own.
+            onAllNodesWithText(chrome.rateLimited).assertCountEquals(0)
+        }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun `a rate limit with no believable reset falls back to the vague message`() =
+        runComposeUiTest {
+            val phase = SearchPhase.Failed(AppError.RateLimited(RESET_AT), rateLimitWaitMinutes = null)
+
+            val chrome = show(SearchUiState(query = "kotlin", phase = phase))
+
+            // A header that could not be believed degrades to the sentence without a number,
+            // rather than to a number the screen invented.
+            onNodeWithText(chrome.rateLimited).assertIsDisplayed()
+            onNodeWithText(chrome.retry).assertIsDisplayed()
+            // A renderer that shows both messages would pass the assertion above on its own.
+            onAllNodesWithText(chrome.rateLimitedWait).assertCountEquals(0)
+        }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
     fun `a page that fails to append leaves the results on screen`() =
         runComposeUiTest {
             val chrome = show(contentOf(listOf(KOTLIN_SUMMARY), requestId = 1, appendError = AppError.Network))
@@ -494,8 +541,12 @@ private class Chrome {
     var searchAction = ""
     var languageUnknown = ""
     var networkError = ""
+    var rateLimited = ""
     var appendFailed = ""
     var kotlinAvatar = ""
+
+    /** The rate-limit sentence for [WAIT_MINUTES], formatted by the same call the UI makes. */
+    var rateLimitedWait = ""
 
     @Composable
     fun resolve() {
@@ -506,6 +557,9 @@ private class Chrome {
         searchAction = stringResource(Res.string.search_action)
         languageUnknown = stringResource(Res.string.language_unknown)
         networkError = stringResource(Res.string.error_network)
+        rateLimited = stringResource(Res.string.error_rate_limited)
+        // Parameterised, so it is resolved with the same argument the content will pass.
+        rateLimitedWait = stringResource(Res.string.error_rate_limited_wait, WAIT_MINUTES.toString())
         appendFailed = stringResource(Res.string.search_append_failed)
         // Parameterised, so it has to be resolved with the argument the row will pass.
         kotlinAvatar = stringResource(Res.string.owner_avatar, KOTLIN_SUMMARY.coordinates.owner)

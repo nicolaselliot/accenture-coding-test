@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.nicolas.githubsearch.core.common.AppError
 import dev.nicolas.githubsearch.core.common.Outcome
+import dev.nicolas.githubsearch.core.common.rateLimitWaitMinutes
 import dev.nicolas.githubsearch.domain.FIRST_SEARCH_PAGE
 import dev.nicolas.githubsearch.domain.LAST_SEARCH_PAGE
 import dev.nicolas.githubsearch.domain.RepositorySummary
@@ -229,7 +230,14 @@ public class SearchViewModel(
                     }
 
                     is Outcome.Failure -> {
-                        mutableState.update { it.copy(phase = it.phase.withFailure(outcome.error, page)) }
+                        // Resolved here, at the moment the failure lands, because it is a function
+                        // of the clock as well as of the error. Computing it once and carrying it
+                        // forward would leave a retry five minutes later still promising the wait
+                        // the first attempt saw.
+                        val waitMinutes = outcome.error.rateLimitWaitMinutes(clock.now())
+                        mutableState.update {
+                            it.copy(phase = it.phase.withFailure(outcome.error, page, waitMinutes))
+                        }
                     }
                 }
             }
@@ -311,13 +319,20 @@ private fun SearchPhase.enterLoading(page: Int): SearchPhase =
         else -> SearchPhase.Loading
     }
 
-/** A first-page failure takes over the screen; an append failure shows beside the results. */
+/**
+ * A first-page failure takes over the screen; an append failure shows beside the results.
+ *
+ * [waitMinutes] reaches only the full-screen failure. The append footer names what failed rather
+ * than why — the results above it are intact and still readable — so it has no sentence to put a
+ * number into.
+ */
 private fun SearchPhase.withFailure(
     error: AppError,
     page: Int,
+    waitMinutes: Int?,
 ): SearchPhase =
     when {
-        page == FIRST_SEARCH_PAGE -> SearchPhase.Failed(error)
+        page == FIRST_SEARCH_PAGE -> SearchPhase.Failed(error, waitMinutes)
         this is SearchPhase.Content -> copy(isAppending = false, appendError = error)
-        else -> SearchPhase.Failed(error)
+        else -> SearchPhase.Failed(error, waitMinutes)
     }

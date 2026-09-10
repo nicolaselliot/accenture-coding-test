@@ -47,6 +47,7 @@ import dev.nicolas.githubsearch.core.designsystem.generated.resources.detail_wat
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_network
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_not_found
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_rate_limited
+import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_rate_limited_wait
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_unauthorized
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_unknown
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.language_unknown
@@ -120,7 +121,7 @@ public fun DetailContent(
                 when (phase) {
                     DetailPhase.Loading -> StatsSkeleton()
                     is DetailPhase.Content -> Stats(phase.detail)
-                    is DetailPhase.Failed -> FailureMessage(error = phase.error, onRetry = onRetry)
+                    is DetailPhase.Failed -> FailureMessage(phase = phase, onRetry = onRetry)
                 }
             }
         }
@@ -308,7 +309,7 @@ private fun StatRow(
 
 @Composable
 private fun FailureMessage(
-    error: AppError,
+    phase: DetailPhase.Failed,
     onRetry: () -> Unit,
 ) {
     Column(
@@ -319,7 +320,7 @@ private fun FailureMessage(
         verticalArrangement = Arrangement.spacedBy(Spacing.medium, Alignment.CenterVertically),
     ) {
         Text(
-            text = stringResource(messageFor(error)),
+            text = failureMessage(phase.error, phase.rateLimitWaitMinutes),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
         )
@@ -336,16 +337,34 @@ private fun FailureMessage(
 }
 
 /**
- * The message for one error.
+ * The sentence shown for one failure, including the wait when there is one to state.
+ *
+ * [rateLimitWaitMinutes] arrives already resolved from the ViewModel's injected clock — a
+ * composable has none, and reading the real one here would put an untestable time source in the UI
+ * layer. A null wait falls back to the sentence without a number, which covers both a failure that
+ * implies no wait and a reset header too absurd to repeat back.
+ *
+ * Not a live countdown: the number is fixed when the failure lands, and the retry control is what
+ * re-reads it. That is enough to tell a minute from most of an hour, which is the distinction this
+ * screen needs — `GET /repos/{owner}/{repo}` allows sixty requests an hour unauthenticated.
+ */
+@Composable
+private fun failureMessage(
+    error: AppError,
+    rateLimitWaitMinutes: Int?,
+): String =
+    if (error is AppError.RateLimited && rateLimitWaitMinutes != null) {
+        stringResource(Res.string.error_rate_limited_wait, rateLimitWaitMinutes.toString())
+    } else {
+        stringResource(messageFor(error))
+    }
+
+/**
+ * The message for one error, for every case that needs no argument.
  *
  * A `when` over the sealed hierarchy rather than a message carried on the error, so `:core:common`
  * stays free of user-facing text. The strings themselves are shared with the search screen, which
  * is what stops two translations of one sentence disagreeing.
- *
- * `RateLimited` carries a real reset instant which this deliberately does not render, the same as
- * on the search screen — a countdown needs a ticking time source and the motion pass owns that.
- * The omission costs more here: `GET /repos/{owner}/{repo}` allows sixty requests an hour
- * unauthenticated, so "wait a moment" can understate the wait by most of an hour.
  *
  * The mapping is duplicated in `:feature:search`, which is the second occurrence and therefore a
  * hint rather than a command. Consolidating it means putting the function where both features can

@@ -50,6 +50,7 @@ import dev.nicolas.githubsearch.core.designsystem.generated.resources.action_ret
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_network
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_not_found
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_rate_limited
+import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_rate_limited_wait
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_unauthorized
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.error_unknown
 import dev.nicolas.githubsearch.core.designsystem.generated.resources.language_unknown
@@ -119,7 +120,7 @@ public fun SearchContent(
                     SearchPhase.Idle -> CentredMessage(Res.string.search_idle)
                     SearchPhase.Loading -> ResultSkeleton()
                     SearchPhase.Empty -> CentredMessage(Res.string.search_empty)
-                    is SearchPhase.Failed -> CentredFailure(error = phase.error, onRetry = actions.onRetry)
+                    is SearchPhase.Failed -> CentredFailure(phase = phase, onRetry = actions.onRetry)
                     is SearchPhase.Content -> ResultList(phase = phase, actions = actions)
                 }
             }
@@ -222,7 +223,7 @@ private fun ResultList(
             item(key = APPEND_FAILED_KEY, contentType = APPEND_FAILED_CONTENT_TYPE) {
                 // Names what failed rather than why: the results above are intact, and "could not
                 // load more" is the part that distinguishes this from the full-screen error state.
-                FailureMessage(Res.string.search_append_failed, onRetry = actions.onRetry)
+                FailureMessage(stringResource(Res.string.search_append_failed), onRetry = actions.onRetry)
             }
         } else if (phase.hasMore) {
             item(key = APPEND_KEY, contentType = APPEND_CONTENT_TYPE) {
@@ -331,17 +332,17 @@ private fun CentredMessage(message: StringResource) {
  */
 @Composable
 private fun CentredFailure(
-    error: AppError,
+    phase: SearchPhase.Failed,
     onRetry: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        FailureMessage(messageFor(error), onRetry)
+        FailureMessage(failureMessage(phase.error, phase.rateLimitWaitMinutes), onRetry)
     }
 }
 
 @Composable
 private fun FailureMessage(
-    message: StringResource,
+    message: String,
     onRetry: () -> Unit,
 ) {
     // Sized to its content and left where its caller puts it, because it has two callers: the
@@ -355,7 +356,7 @@ private fun FailureMessage(
         verticalArrangement = Arrangement.spacedBy(Spacing.medium),
     ) {
         Text(
-            text = stringResource(message),
+            text = message,
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
         )
@@ -389,13 +390,36 @@ private fun LoadingIndicator() {
 }
 
 /**
- * The message for one error.
+ * The sentence shown for one failure, including the wait when there is one to state.
+ *
+ * Split from [messageFor] because only this case takes an argument. [rateLimitWaitMinutes] arrives
+ * already resolved from the ViewModel's injected clock — a composable has none, and reading the
+ * real one here would put an untestable time source in the UI layer.
+ *
+ * A null wait falls back to the sentence without a number. That is not only the non-rate-limit
+ * path: a reset header that was absurd resolves to null too, and inventing a number for it would
+ * be worse than saying nothing specific.
+ *
+ * Not a live countdown. The number is fixed when the failure lands and the retry control is what
+ * re-reads it, which is enough to tell a wait of one minute from most of an hour — the distinction
+ * that actually matters at ten searches a minute.
+ */
+@Composable
+private fun failureMessage(
+    error: AppError,
+    rateLimitWaitMinutes: Int?,
+): String =
+    if (error is AppError.RateLimited && rateLimitWaitMinutes != null) {
+        stringResource(Res.string.error_rate_limited_wait, rateLimitWaitMinutes.toString())
+    } else {
+        stringResource(messageFor(error))
+    }
+
+/**
+ * The message for one error, for every case that needs no argument.
  *
  * A `when` over the sealed hierarchy rather than a message carried on the error itself, so
  * `:core:common` stays free of user-facing text and every string lives in one bundle.
- *
- * `RateLimited` carries a real reset instant, which this deliberately does not render yet: a
- * countdown needs a ticking time source, and the motion and polish pass owns that.
  */
 private fun messageFor(error: AppError): StringResource =
     when (error) {

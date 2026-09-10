@@ -3,6 +3,7 @@ package dev.nicolas.githubsearch.feature.detail
 import app.cash.turbine.test
 import dev.nicolas.githubsearch.core.common.AppError
 import dev.nicolas.githubsearch.core.common.Outcome
+import dev.nicolas.githubsearch.core.testing.FakeClock
 import dev.nicolas.githubsearch.core.testing.FakeGithubRepository
 import dev.nicolas.githubsearch.core.testing.LINUX_COORDINATES
 import dev.nicolas.githubsearch.core.testing.LINUX_DETAIL
@@ -25,6 +26,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
+
+private val NOW = Instant.fromEpochSeconds(1_788_000_000)
 
 // setMain/resetMain and advanceUntilIdle are the documented way to drive a ViewModel under
 // runTest, and all three are still marked experimental. Opted in once here rather than warned
@@ -132,6 +138,67 @@ class DetailViewModelTest {
         }
 
     @Test
+    fun `a rate limited detail reports the wait it implies`() =
+        runTest {
+            val resetAt = NOW + 90.seconds
+            val port = FakeGithubRepository(detailResult = Outcome.Failure(AppError.RateLimited(resetAt)))
+
+            val viewModel = viewModel(port)
+
+            viewModel.state.test {
+                assertEquals(DetailPhase.Loading, awaitItem().phase)
+
+                // Ninety seconds rounds up to two minutes. It matters more here than on the search
+                // screen: this endpoint allows sixty requests an hour unauthenticated, so the honest
+                // answer can be most of an hour and "wait a moment" would understate it badly.
+                assertEquals(
+                    DetailPhase.Failed(AppError.RateLimited(resetAt), rateLimitWaitMinutes = 2),
+                    awaitItem().phase,
+                )
+            }
+        }
+
+    @Test
+    fun `a detail that fails for any other reason carries no wait`() =
+        runTest {
+            val port = FakeGithubRepository(detailResult = Outcome.Failure(AppError.Network))
+
+            val viewModel = viewModel(port)
+
+            viewModel.state.test {
+                assertEquals(DetailPhase.Loading, awaitItem().phase)
+
+                // Only a rate limit knows when it lifts; a wait on anything else would be invented.
+                assertEquals(
+                    DetailPhase.Failed(AppError.Network, rateLimitWaitMinutes = null),
+                    awaitItem().phase,
+                )
+            }
+        }
+
+    @Test
+    fun `a retry reports the wait left when it fails rather than the wait first seen`() =
+        runTest {
+            val resetAt = NOW + 30.minutes
+            val clock = FakeClock(NOW)
+            val port = FakeGithubRepository(detailResult = Outcome.Failure(AppError.RateLimited(resetAt)))
+            val viewModel = viewModel(port, clock = clock)
+
+            viewModel.state.test {
+                assertEquals(DetailPhase.Loading, awaitItem().phase)
+                assertEquals(30, (awaitItem().phase as DetailPhase.Failed).rateLimitWaitMinutes)
+
+                clock.advanceBy(25.minutes)
+                viewModel.onRetry()
+
+                assertEquals(DetailPhase.Loading, awaitItem().phase)
+                // An hourly budget is long enough that a user really can sit on this screen while it
+                // ticks down. A wait computed once would still promise thirty minutes.
+                assertEquals(5, (awaitItem().phase as DetailPhase.Failed).rateLimitWaitMinutes)
+            }
+        }
+
+    @Test
     fun `retry is refused while a request is already running`() =
         runTest {
             val gate = CompletableDeferred<Unit>()
@@ -153,9 +220,11 @@ class DetailViewModelTest {
 private fun viewModel(
     port: GithubRepositoryPort,
     coordinates: RepositoryCoordinates = LINUX_COORDINATES,
+    clock: FakeClock = FakeClock(NOW),
 ) = DetailViewModel(
     coordinates = coordinates,
     getRepositoryDetail = GetRepositoryDetailUseCase(port),
+    clock = clock,
 )
 
 /**

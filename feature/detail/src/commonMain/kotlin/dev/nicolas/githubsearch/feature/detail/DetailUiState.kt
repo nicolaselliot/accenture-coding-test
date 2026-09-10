@@ -44,8 +44,17 @@ public sealed interface DetailPhase {
         val detail: RepositoryDetail,
     ) : DetailPhase
 
-    /** The request failed. Always retryable — the user has no other way forward. */
+    /**
+     * The request failed. Always retryable — the user has no other way forward.
+     *
+     * [rateLimitWaitMinutes] is how long the failure says to wait, already resolved against the
+     * ViewModel's injected clock — `null` for every failure that implies no wait, and for a rate
+     * limit whose reset header could not be believed. It carries more weight here than on the
+     * search screen: `GET /repos/{owner}/{repo}` is an hourly budget, so the honest answer can be
+     * most of an hour rather than the minute a search costs.
+     */
     public data class Failed(
         val error: AppError,
+        val rateLimitWaitMinutes: Int? = null,
     ) : DetailPhase
 }

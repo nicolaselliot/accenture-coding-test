@@ -118,6 +118,9 @@ private val featureModule =
             DetailViewModel(
                 coordinates = parameters.get<RepositoryCoordinates>(),
                 getRepositoryDetail = get(),
+                // The same clock the network layer resolves reset headers against, so the wait the
+                // screen states is measured on the same time source that produced the instant.
+                clock = get(),
             )
         }
     }

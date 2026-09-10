@@ -2,7 +2,9 @@ package dev.nicolas.githubsearch.feature.detail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.nicolas.githubsearch.core.common.AppError
 import dev.nicolas.githubsearch.core.common.Outcome
+import dev.nicolas.githubsearch.core.common.rateLimitWaitMinutes
 import dev.nicolas.githubsearch.domain.GetRepositoryDetailUseCase
 import dev.nicolas.githubsearch.domain.RepositoryCoordinates
 import kotlinx.coroutines.Job
@@ -11,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 
 /**
  * Holds the detail screen's state for one repository.
@@ -27,6 +30,7 @@ import kotlinx.coroutines.launch
 public class DetailViewModel(
     private val coordinates: RepositoryCoordinates,
     private val getRepositoryDetail: GetRepositoryDetailUseCase,
+    private val clock: Clock,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(DetailUiState(coordinates = coordinates))
 
@@ -80,9 +84,22 @@ public class DetailViewModel(
                 val phase =
                     when (val outcome = getRepositoryDetail(coordinates)) {
                         is Outcome.Success -> DetailPhase.Content(outcome.value)
-                        is Outcome.Failure -> DetailPhase.Failed(outcome.error)
+                        is Outcome.Failure -> failed(outcome.error)
                     }
                 mutableState.update { it.copy(phase = phase) }
             }
     }
+
+    /**
+     * The failed phase for [error], with the wait it implies.
+     *
+     * The clock is read here, as the failure lands, rather than when the screen was opened. This
+     * endpoint is an hourly budget, so a user can sit on the error long enough that a wait worked
+     * out once and carried forward would be visibly wrong by the time they retry.
+     */
+    private fun failed(error: AppError): DetailPhase.Failed =
+        DetailPhase.Failed(
+            error = error,
+            rateLimitWaitMinutes = error.rateLimitWaitMinutes(clock.now()),
+        )
 }
