@@ -1,5 +1,4 @@
 import com.android.build.api.artifact.SingleArtifact
-import dev.nicolas.githubsearch.buildlogic.CopyComposeResourcesToAssetsTask
 
 plugins {
     id("githubsearch.android.application")
@@ -10,26 +9,6 @@ dependencies {
     // setContent and enableEdgeToEdge. Android-only, so it lives here rather than in a shared
     // module — :androidApp is not multiplatform.
     implementation(libs.androidx.activity.compose)
-}
-
-// The Compose resource bundle, packaged as assets.
-//
-// :core:designsystem owns every user-facing string but cannot deliver them itself: AGP 9's
-// `com.android.kotlin.multiplatform.library` plugin has no assets pipeline, so a shared module's
-// variants expose no assets directory and its AAR carries none. The application module is the only
-// one whose variants do, so it packages what that module publishes. See docs/adr/0010.
-val composeResourceBundles: Configuration by
-    configurations.creating {
-        isCanBeConsumed = false
-        isCanBeResolved = true
-    }
-
-dependencies {
-    // By configuration name rather than by attribute: the published artifact is a plain directory
-    // and has no business taking part in Android variant matching.
-    composeResourceBundles(
-        project(mapOf("path" to ":core:designsystem", "configuration" to "androidComposeResources")),
-    )
 }
 
 // Compose Resources reach an Android APK as *assets*, and nothing else in the build notices when
@@ -45,21 +24,6 @@ dependencies {
 // `BuiltArtifactsLoader` and a minified APK on every `check`.
 androidComponents {
     onVariants { variant ->
-        val packageComposeResources =
-            tasks.register<CopyComposeResourcesToAssetsTask>(
-                "package${variant.name.replaceFirstChar(Char::titlecase)}ComposeResources",
-            ) {
-                bundles.from(composeResourceBundles)
-                outputDirectory.set(layout.buildDirectory.dir("generated/composeResources/${variant.name}"))
-            }
-
-        // Registering the directory is what carries the task dependency too, so the assets are
-        // built before they are merged rather than by luck of task ordering.
-        variant.sources.assets?.addGeneratedSourceDirectory(
-            packageComposeResources,
-            CopyComposeResourcesToAssetsTask::outputDirectory,
-        )
-
         // The merged assets of the whole app, every module's contribution included, taken through
         // the artifact API so the check is wired to the producing task rather than to a path.
         val assets = variant.artifacts.get(SingleArtifact.ASSETS)
@@ -101,9 +65,10 @@ androidComponents {
                         error(
                             "No Compose resource bundle was packaged into the $variantName assets. " +
                                 "Every user-facing string is served from one, so the app would crash on " +
-                                "its first screen. Check that the Compose plugin's " +
-                                "copyAndroidMainComposeResourcesToAndroidAssets task has an output " +
-                                "directory wired into the variant's assets.",
+                                "its first screen. The usual cause is `androidResources.enable` being " +
+                                "off for the module that owns the bundle: this plugin ships it " +
+                                "disabled, and without it the Compose plugin's copy task is skipped in " +
+                                "silence. It is set in githubsearch.kmp.library — see docs/adr/0014.",
                         )
                     }
                 }
