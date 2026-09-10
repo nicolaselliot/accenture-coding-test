@@ -4,7 +4,7 @@
 プラットフォーム対応アプリです。UI を含むほぼ全てのコードを Kotlin Multiplatform +
 Compose Multiplatform で共有しています。
 
-アプリコード（`build-logic` を除く `.kt` / `.swift`）10,121 行のうち **96.6% が共有ソースセット**に
+アプリコード（`build-logic` を除く `.kt` / `.swift`）10,155 行のうち **96.7% が共有ソースセット**に
 あります。プラットフォーム固有なのは合計 340 行だけで、その内訳は 3 つのエントリポイントと、
 本当にプラットフォームが違う 4 組の `expect`/`actual`（ディスパッチャ、ダイナミックカラー、
 reduce-motion、数値フォーマット）、そして Swift 62 行です。
@@ -252,8 +252,8 @@ GitHub Actions が全ジョブに注入する名前であり、そちらを読�
 
 ```bash
 ./gradlew ktlintCheck detekt checkBuildLogic     # フォーマット + 静的解析 + build-logic 自身のテスト
-./gradlew build                                  # 全ターゲットのビルドと 264 件の共有テスト
-./gradlew testAndroidHostTest                    # Android ホスト JVM で 222 件
+./gradlew build                                  # 全ターゲットのビルドと 265 件の共有テスト
+./gradlew testAndroidHostTest                    # Android ホスト JVM で 223 件
 ./gradlew :androidApp:assembleProdRelease -Pgithubsearch.flavor=prod
 ```
 
@@ -456,10 +456,10 @@ Kent Beck の Canon TDD に従い、各 PR ではまずテストシナリオの�
 
 | | 件数 | 実行される場所 |
 |---|---:|---|
-| ユニットテスト（共有） | 222 | Desktop / iOS シミュレータ / Android ホスト JVM |
+| ユニットテスト（共有） | 223 | Desktop / iOS シミュレータ / Android ホスト JVM |
 | UI テスト（`runComposeUiTest`） | 42 | Desktop / iOS シミュレータ |
 | build-logic 自身のテスト | 15 | JVM |
-| **合計** | **279** | すべて毎 PR の CI 内 |
+| **合計** | **280** | すべて毎 PR の CI 内 |
 
 ### テストダブルは Fake が既定
 
@@ -618,7 +618,7 @@ CI のジョブ内に限定して復号されます。
   約 640dp で単一ペインのまま、大型端末は約 892dp で分割されます。状態は `rememberSaveable` と
   ViewModel で回転をまたいで保持されます。
 - **多言語対応** — 日本語と英語。**プラットフォームのロケールから解決**し、アプリ内に言語切替は
-  置いていません。文字列 24 件 × 2 ロケールがすべて `:core:designsystem` の 1 バンドルにあり、
+  置いていません。文字列 25 件 × 2 ロケールがすべて `:core:designsystem` の 1 バンドルにあり、
   コンポーザブル内のハードコード文字列はレビューブロッカーです。`values-ja` にキーが欠けても
   Compose Resources は英語を静かに返してしまうため、`verifyTranslations` タスクで
   キー集合とプレースホルダ集合の双方向一致を検査し、`check` に接続しています。
@@ -720,6 +720,7 @@ CI のジョブ内に限定して復号されます。
 | [0012](docs/adr/0012-run-the-ui-suite-on-desktop-and-ios.md) | UI スイートは Desktop と iOS で走らせ、Android device test は採らない |
 | [0013](docs/adr/0013-distribute-from-a-separate-tag-triggered-workflow.md) | 配布はタグ起動の別ワークフローから行う |
 | [0014](docs/adr/0014-enable-the-library-android-resources-pipeline.md) | ライブラリモジュールの Android リソースパイプラインを有効にし、0010 の回避策を削除する |
+| [0015](docs/adr/0015-lower-the-minimum-query-length-to-one-character.md) | 最小クエリ長を 1 文字に下げ、課題が許すキーワードを拒否しないようにする |
 
 ---
 
@@ -808,10 +809,10 @@ GitHub が生成した `Initial commit`（`.gitignore` / `LICENSE` / `README.md`
   待ち時間は分で画面に出ます。トークンなしで触るレビュアーが最初に到達する状態なので、
   そこが「しばらく待ってください」で終わらないことを実装の一部として扱っています。
 - **TDD を宣言した作業方法として実行し、各 PR にシナリオ一覧を残しています。**
-  279 件のテストは後から足したものではありません。
+  280 件のテストは後から足したものではありません。
 - **腐敗防止層があります。** DTO は `:data:github` の外に出ず、null 許容性と API の癖は
   境界のマッパーで正規化されるため、UI 層は `language: null` を知りません。
-- **決定を 14 本の ADR に記録しています。** 「なぜこの版なのか」「なぜこの beta を採らなかったのか」が
+- **決定を 15 本の ADR に記録しています。** 「なぜこの版なのか」「なぜこの beta を採らなかったのか」が
   コードを読まずに追えます。
 - **セキュリティを願望ではなくレビューゲートとして扱っています。** 2 つ目の HTTP クライアント、
   `toString()` のトークン秘匿、ログレベルの切り下げ、パスセグメントの拒否リスト、prod の
