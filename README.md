@@ -37,15 +37,15 @@ reduce-motion、数値フォーマット）、そして Swift 62 行です。
 
 | Android — 検索結果 | Android — 詳細（7 項目） | Android — ダークモード + 英語 |
 |:---:|:---:|:---:|
-| <img src="docs/screenshots/android-search-ja.png" width="260"> | <img src="docs/screenshots/android-detail-ja.png" width="260"> | <img src="docs/screenshots/android-detail-dark-en.png" width="260"> |
+| <img src="docs/screenshots/android-search-ja.png" alt="Android の検索結果画面" width="260"> | <img src="docs/screenshots/android-detail-ja.png" alt="Android の詳細画面(7 項目)" width="260"> | <img src="docs/screenshots/android-detail-dark-en.png" alt="Android のダークモード詳細画面(英語)" width="260"> |
 
 | iOS — 検索結果 | iOS — 詳細 | iOS — ダークモード |
 |:---:|:---:|:---:|
-| <img src="docs/screenshots/ios-search-ja.png" width="260"> | <img src="docs/screenshots/ios-detail-ja.png" width="260"> | <img src="docs/screenshots/ios-detail-dark-ja.png" width="260"> |
+| <img src="docs/screenshots/ios-search-ja.png" alt="iOS の検索結果画面" width="260"> | <img src="docs/screenshots/ios-detail-ja.png" alt="iOS の詳細画面" width="260"> | <img src="docs/screenshots/ios-detail-dark-ja.png" alt="iOS のダークモード詳細画面" width="260"> |
 
 **画面回転 → 二画面（list-detail）レイアウト。** 回転をまたいで検索結果も選択中のリポジトリも保持されます。
 
-<img src="docs/screenshots/android-two-pane-ja.png" width="900">
+<img src="docs/screenshots/android-two-pane-ja.png" alt="Android の二画面(list-detail)レイアウト" width="900">
 
 **Desktop（macOS）— 二画面レイアウトと、システム設定に追従するテーマ。** ウィンドウ幅を広げると
 Android の回転と同じ `WindowSizeClass` の判定で list-detail になります。タイトルバーの
@@ -53,7 +53,7 @@ Android の回転と同じ `WindowSizeClass` の判定で list-detail になり�
 
 | Desktop — ライト | Desktop — ダーク |
 |:---:|:---:|
-| <img src="docs/screenshots/desktop-two-pane-ja.png" width="440"> | <img src="docs/screenshots/desktop-two-pane-dark-ja.png" width="440"> |
+| <img src="docs/screenshots/desktop-two-pane-ja.png" alt="Desktop の二画面レイアウト(ライト)" width="440"> | <img src="docs/screenshots/desktop-two-pane-dark-ja.png" alt="Desktop の二画面レイアウト(ダーク)" width="440"> |
 
 > 詳細画面の「スター 53,376」と「ウォッチャー 1,488」は **別の数字** です。GitHub の
 > `watchers_count` は star のエイリアスであり、両方をそこから読むと全リポジトリで同じ数字が
@@ -262,7 +262,7 @@ GitHub Actions が全ジョブに注入する名前であり、そちらを読�
 
 依存の向きは一方通行です。
 
-```
+```text
 UI (Composable) → ViewModel → UseCase → Port (interface) ← Repository → Ktor
 ```
 
@@ -278,7 +278,7 @@ UI (Composable) → ViewModel → UseCase → Port (interface) ← Repository �
 JetBrains が 2026 年に推奨する KMP 構成に従い、**アプリのエントリポイントを独立モジュール**とし、
 共有コードと混ぜていません。
 
-```
+```text
 androidApp/          Android のエントリポイント
 desktopApp/          Desktop (JVM) のエントリポイント
 iosApp/              Xcode プロジェクト（Gradle モジュールではない）
@@ -503,6 +503,8 @@ third-party の GitHub Actions は**すべてコミット SHA で固定**して�
 問題になる欠陥**をレビューします — レイヤリング違反、握り潰された `CancellationException`、
 `subscribers_count` ではなく `watchers_count` にバインドされた詳細画面。
 公開リポジトリでは無料で、シークレットを必要としません（[ADR-0006](docs/adr/0006-use-coderabbit-for-ai-review.md)）。
+必須ステータスチェックには含めていません — サービス側のレート制限（1 時間あたり 1 レビュー、
+無料枠）にかかるとその回は完了しないためで、レビューは実施ベスト・エフォート、非ブロッキングです。
 
 ### `release.yml` — 仮のデプロイ環境
 
@@ -828,7 +830,8 @@ GitHub が生成した `Initial commit`（`.gitignore` / `LICENSE` / `README.md`
   `Read` と `Bash` の双方に掛けているので `cat > local.properties` のような迂回も防ぎ、
   入力が解釈できないときは拒否側に倒れます。両方向の自己テストが 56 件あります。
 - **AI が書いたコードも人間のコードと同じゲートを通っています。** 失敗するテストが先、
-  CodeRabbit のレビュー、CI マトリクス、ブランチ保護。
+  CI マトリクスとブランチ保護は必須。CodeRabbit のレビューはそこに追加される非ブロッキングの
+  観点で、必須ステータスチェックには含めていません。
 - **AI に決めさせなかったこと** — 固定バージョンの変更（すべて ADR）、シークレットの取り扱い、
   そして Git 履歴。コミット・プッシュ・PR 作成はすべて人間が実行しています。
 
