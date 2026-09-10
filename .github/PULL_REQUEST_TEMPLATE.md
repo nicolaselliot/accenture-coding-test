@@ -43,4 +43,5 @@ cancelled). Tick what landed. Scenarios discovered while working get added here,
 - [ ] Dark mode and rotation verified on any touched screen
 - [ ] No hardcoded user-facing strings
 - [ ] No secret, token, or sensitive value logged or committed
-- [ ] Every new value is in *Fixed parameters*, or newly added there with a reason
+- [ ] Every new value is pinned where a fresh clone can find it — `gradle/libs.versions.toml` for a
+      version, an ADR under `docs/adr/` for a decision, a documented constant otherwise

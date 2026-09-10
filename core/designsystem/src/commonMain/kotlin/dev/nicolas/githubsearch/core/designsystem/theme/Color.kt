@@ -36,8 +36,9 @@ private val tertiaryTone10 = Color(0xFF3D0024)
  * The light palette, and the fallback used on every platform that cannot supply a dynamic one and
  * on Android below 12.
  *
- * Grown from the seed `#2D6BE4` that the implementation plan's *Fixed parameters* pins; changing
- * that seed is an architecture decision, not an edit. The tones are generated rather than picked:
+ * Grown from the seed `#2D6BE4`. The tone declarations above are that seed's only committed
+ * record, so changing them is an architecture decision — record it under `docs/adr/`, as
+ * ADR-0008 records the `*Fixed` roles — rather than an edit. The tones are generated rather than picked:
  * each role sits at the Material 3 tone its slot calls for, on the CIELAB L* axis that Material's
  * HCT "tone" is defined as, holding the seed's hue and clipping chroma to the sRGB gamut.
  * `ColorSchemeTest` proves every text-bearing pair clears WCAG AA, which is the property that

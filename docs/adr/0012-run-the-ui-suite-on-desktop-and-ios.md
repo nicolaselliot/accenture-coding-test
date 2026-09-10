@@ -96,7 +96,7 @@ withheld from every Android test compilation.**
   first CI run proves it, and if it needs a virtual display that is a workflow change, not a
   redesign.
 - Android's ViewModel and mapper suites keep running on its host JVM, as before.
-- Two suite-level rules follow from the findings and are pinned in the plan's *Fixed parameters*:
+- Two suite-level rules follow from the findings, and this ADR is where they are recorded:
   every expected string is resolved from the same bundle the UI reads (never written out in
   English), and no test name contains a comma.
 

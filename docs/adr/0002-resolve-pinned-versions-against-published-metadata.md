@@ -5,12 +5,13 @@
 
 ## Context
 
-The implementation plan pins every dependency version, and treats changing one as a decision rather
-than a preference. Two of those pins were provisional, and PR1 was the point at which they had to be
-checked against what is actually published.
+`gradle/libs.versions.toml` pins every dependency version, and this project treats changing one as a
+decision rather than a preference. Two of those pins came from the pre-implementation planning
+notes — a local working document, deliberately not committed — as provisional, and PR1 was the
+point at which they had to be checked against what is actually published.
 
 **`lifecycle-viewmodel-navigation3`** was pinned at **2.10.0** while the rest of AndroidX Lifecycle
-was pinned at 2.11.0. The plan recorded this as a version skew to confirm — "confirm in PR1 that
+was pinned at 2.11.0. Those notes recorded this as a version skew to confirm — "confirm in PR1 that
 2.10.0 and 2.11.0 coexist, and if not, drop to 2.10.0 across the board" — because the artifact was
 believed to lag one minor behind the rest of the line.
 

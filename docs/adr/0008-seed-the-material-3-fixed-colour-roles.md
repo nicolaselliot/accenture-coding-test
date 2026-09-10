@@ -50,10 +50,10 @@ cannot drift the way two literals can. The existing roles that sit on the same t
 the same vals, so the tone reuse is visible at every call site instead of being a coincidence
 between twelve pairs of hex literals.
 
-Because the tones already existed, this adds **no row to the plan's *Fixed parameters* token
-table** beyond a note recording the mapping. The pinned seed, the pinned chroma values and the
-pinned tone assignments are all unchanged — this ADR records a *completeness* fix, not a new
-parameter.
+Because the tones already existed, this adds **no new colour parameter** — only a mapping from
+roles that were previously unset onto tones `Color.kt` already declared. The seed, the chroma
+values and the tone assignments are all unchanged, so this ADR records a *completeness* fix rather
+than a new pinned value.
 
 ## Consequences
 

@@ -15,7 +15,7 @@ import kotlin.time.Instant
  *
  * Long enough to cover going back to the list and re-opening the same repository, which is the
  * gesture this cache exists for; short enough that a star count on screen stays close to current.
- * Pinned in the implementation plan's *Fixed parameters*.
+ * This declaration is the pinned value; changing it is a decision to record under `docs/adr/`.
  *
  * Measured from when the response was *stored*, not when it was requested. With retry and a 15 s
  * request timeout in front, a slow fetch can add most of a minute to the age of what is served, so
@@ -27,8 +27,8 @@ internal val DETAIL_CACHE_TTL: Duration = 5.minutes
  * How many details are kept.
  *
  * A TTL alone is not a bound: on a scrollable list of a thousand results, a map that only ever
- * expires entries still grows for five minutes at whatever rate the user can tap. Pinned in
- * *Fixed parameters*.
+ * expires entries still grows for five minutes at whatever rate the user can tap. This declaration
+ * is the pinned value, like [DETAIL_CACHE_TTL] above.
  */
 internal const val DETAIL_CACHE_MAX_ENTRIES: Int = 50
 
