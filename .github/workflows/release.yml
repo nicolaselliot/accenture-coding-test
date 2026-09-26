@@ -113,7 +113,7 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
 
@@ -320,7 +320,7 @@ jobs:
 
       # Needed even though nothing Android is built: the Xcode build phase runs Gradle, AGP is
       # applied to every shared module, and the project cannot configure without an SDK.
-      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
 
@@ -575,7 +575,7 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           # Needed even here: AGP is applied to every shared module, so the build cannot configure
           # without an SDK — the Desktop packaging task still has to configure the whole project.
