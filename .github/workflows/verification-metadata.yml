@@ -46,7 +46,7 @@ jobs:
       # The platform is installed through the action rather than a `sdkmanager` step: on the
       # Windows runner the tool is `sdkmanager.bat`, so a bash step calling the bare name fails
       # with "command not found". The action resolves that per platform.
-      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
 
