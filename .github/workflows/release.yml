@@ -117,7 +117,7 @@ jobs:
         with:
           packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
 
-      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           # No Actions cache in the release path, in either direction. Restoring one would let an
           # entry written by any other run on this repository contribute to the APK this job signs
@@ -324,7 +324,7 @@ jobs:
         with:
           packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
 
-      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           # Same reasoning as the other two jobs: nothing this job publishes should come out of a
           # cache another run wrote, and nothing it holds should be written into one.
@@ -581,7 +581,7 @@ jobs:
           # without an SDK — the Desktop packaging task still has to configure the whole project.
           packages: tools platform-tools ${{ env.ANDROID_PLATFORM }}
 
-      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           # Same reasoning as the Android job: this one holds no secret, but it produces the
           # installers attached to a public release, and their integrity is the point.
