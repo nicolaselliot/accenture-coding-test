@@ -46,7 +46,7 @@ jobs:
           # step could read — and on a pull request some of those steps run code from the
           # contributor's branch.
           persist-credentials: false
-      - uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
   # Formatting and static analysis are host-independent, so they run once rather than three times.
   lint:
